@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/EwenQuim/pluie/model"
+	"github.com/EwenQuim/pluie/template"
 )
 
 func main() {
@@ -23,50 +25,34 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(notes)
 
 	urls := make([]string, 0, len(notes))
 	for _, note := range notes {
 		urls = append(urls, strings.TrimSuffix(note.Slug, ".md"))
 	}
-	fmt.Println(urls)
 
-}
-
-type Note struct {
-	Title   string // May contains spaces and slashes, like "articles/Hello World"
-	Slug    string // Slugified title, like "articles/hello-world"
-	Content string
-}
-
-// If Slug is not defined, build it from the title
-// Replace spaces with dashes
-// Replace multiple dashes with a single dash
-// Remove leading and trailing dashes
-func (n *Note) BuildSlug() {
-	n.Slug = strings.TrimSuffix(n.Slug, ".md")
-
-	if n.Slug == "" {
-		n.Slug = n.Title
+	notesMap := make(map[string]model.Note)
+	for _, note := range notes {
+		notesMap[note.Slug] = note
 	}
 
-	n.Slug = strings.ReplaceAll(n.Slug, " ", "-")
-	for strings.Contains(n.Slug, "--") {
-		n.Slug = strings.ReplaceAll(n.Slug, "--", "-")
+	err = Server{
+		NotesMap: notesMap,
+		rs: template.Resource{
+			Notes: notes,
+		},
+	}.Start()
+	if err != nil {
+		panic(err)
 	}
 
-	n.Slug = strings.Trim(n.Slug, "/")
-	n.Slug = strings.Trim(n.Slug, "-")
-
-	n.Slug = url.PathEscape(n.Slug)
-	n.Slug = strings.ReplaceAll(n.Slug, "%2F", "/")
 }
 
 type Explorer struct {
 	BasePath string
 }
 
-func (e Explorer) getFolderNotes(currentPath string) ([]Note, error) {
+func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 	if strings.HasPrefix(currentPath, "/.") || strings.Contains(currentPath, "node_modules") {
 		return nil, nil
 	}
@@ -77,7 +63,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]Note, error) {
 		return nil, err
 	}
 
-	notes := make([]Note, 0)
+	notes := make([]model.Note, 0)
 
 	for _, entry := range dir {
 		if entry.IsDir() {
@@ -99,7 +85,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]Note, error) {
 				return nil, err
 			}
 			content := string(contentBytes)
-			note := Note{
+			note := model.Note{
 				Title:   name,
 				Content: content,
 				Slug:    path.Join(currentPath, name),
