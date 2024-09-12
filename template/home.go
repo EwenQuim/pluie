@@ -12,23 +12,15 @@ type Resource struct {
 }
 
 // Displays the list of notes
-func (r Resource) Home() gomponents.Node {
-	return HTML(
-		Head(
-			Meta(Charset("utf-8")),
-			Meta(Name("viewport"), Content("width=device-width, initial-scale=1")),
-			Title("Obsidian"),
-			Link(Rel("stylesheet"), Type("text/css"), Href("/static/style.css")),
-		),
-		Body(
-			H1(g.Text("Obsidian")),
-			Ul(
-				g.Group(g.Map(r.Notes, func(note model.Note) gomponents.Node {
-					return Li(
-						A(Href("/"+note.Slug), g.Text(note.Title)),
-					)
-				}),
-				),
+func (rs Resource) List() gomponents.Node {
+	return rs.Layout(
+		H1(g.Text("Obsidian")),
+		Ul(
+			g.Group(g.Map(rs.Notes, func(note model.Note) gomponents.Node {
+				return Li(
+					A(Href("/"+note.Slug), g.Text(note.Title)),
+				)
+			}),
 			),
 		),
 	)

@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/EwenQuim/pluie/model"
+	"github.com/EwenQuim/pluie/static"
 	"github.com/EwenQuim/pluie/template"
 
 	"github.com/go-fuego/fuego"
@@ -17,10 +19,13 @@ type Server struct {
 func (s Server) Start() error {
 	server := fuego.NewServer()
 
+	// Serve static files at /static
+	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
+
 	fuego.Get(server, "/{slug...}", func(ctx *fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug := ctx.PathParam("slug")
 		if slug == "" {
-			return s.rs.Home(), nil
+			return s.rs.List(), nil
 		}
 
 		note, ok := s.NotesMap[slug]
@@ -28,7 +33,7 @@ func (s Server) Start() error {
 			return nil, fmt.Errorf("Note with slug %s not found", slug)
 
 		}
-		return s.rs.Note(note), nil
+		return s.rs.Note(note)
 
 	})
 
