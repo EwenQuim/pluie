@@ -1,0 +1,28 @@
+services:
+  pluie:
+    build: .
+    container_name: pluie-app
+    restart: unless-stopped
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./vault:/vault
+    environment:
+      - HOME_NOTE_SLUG=ACCUEIL
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+          ignore:
+            - tmp/
+            - .git/
+            - README.md
+            - .gitignore
+            - .dockerignore
+        - action: sync
+          path: ./vault
+          target: /vault
+
+volumes:
+  vault_data:
+    driver: local
