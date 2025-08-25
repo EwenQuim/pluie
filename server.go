@@ -25,7 +25,9 @@ func (s Server) Start() error {
 	fuego.Get(server, "/{slug...}", func(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug := ctx.PathParam("slug")
 		if slug == "" {
-			return s.rs.List(), nil
+			// Handle search query for home page
+			searchQuery := ctx.QueryParam("search")
+			return s.rs.ListWithSearch(searchQuery), nil
 		}
 
 		note, ok := s.NotesMap[slug]
