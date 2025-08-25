@@ -26,12 +26,24 @@ func MapMap[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
 }
 
 // NoteWithList displays a note with the list of all notes on the left side
-func (rs Resource) NoteWithList(note model.Note, searchQuery string) (gomponents.Node, error) {
+func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponents.Node, error) {
+
 	matter := map[string]any{}
-	content, err := frontmatter.Parse(strings.NewReader(note.Content), &matter)
-	if err != nil {
-		content = []byte(note.Content)
-		fmt.Println("Error parsing frontmatter:", err)
+	var content []byte
+	var slug string
+	var title string
+
+	if note != nil {
+		var err error
+		content, err = frontmatter.Parse(strings.NewReader(note.Content), &matter)
+		if err != nil {
+			content = []byte(note.Content)
+			fmt.Println("Error parsing frontmatter:", err)
+		}
+		slug = note.Slug
+		title = note.Title
+	} else {
+		content = []byte("Note is nil")
 	}
 
 	// Parse wiki-style links before markdown processing
@@ -65,7 +77,7 @@ func (rs Resource) NoteWithList(note model.Note, searchQuery string) (gomponents
 				// Search form
 				Form(
 					Method("GET"),
-					Action("/"+note.Slug),
+					Action("/"+slug),
 					Class("mb-4"),
 					g.Attr("hx-boost", "true"),
 					g.Attr("hx-push-url", "true"),
@@ -80,7 +92,7 @@ func (rs Resource) NoteWithList(note model.Note, searchQuery string) (gomponents
 							Placeholder("Search notes..."),
 							Value(searchQuery),
 							Class("flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"),
-							g.Attr("hx-get", "/"+note.Slug),
+							g.Attr("hx-get", "/"+slug),
 							g.Attr("hx-trigger", "input changed delay:100ms, search"),
 							g.Attr("hx-target", "#notes-list"),
 							g.Attr("hx-select", "#notes-list"),
@@ -108,7 +120,7 @@ func (rs Resource) NoteWithList(note model.Note, searchQuery string) (gomponents
 					ID("notes-list"),
 					Class("space-y-1"),
 					g.Group(g.Map(filteredNotes, func(n model.Note) gomponents.Node {
-						isActive := n.Slug == note.Slug
+						isActive := n.Slug == slug
 						var linkClass string
 						if isActive {
 							linkClass = "block px-3 py-2 text-blue-800 bg-blue-100 rounded-md font-medium"
@@ -137,7 +149,7 @@ func (rs Resource) NoteWithList(note model.Note, searchQuery string) (gomponents
 				Class("flex-1"),
 				H1(
 					Class("text-3xl font-bold mb-4"),
-					g.Text(note.Title),
+					g.If(title != "", g.Text(title)),
 				),
 				g.If(len(matter) > 0,
 					Ul(

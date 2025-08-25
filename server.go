@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -53,6 +53,7 @@ func (s Server) getHomeNoteSlug() string {
 
 func (s Server) Start() error {
 	server := fuego.NewServer(
+		fuego.WithAddr(":9999"),
 		fuego.WithEngineOptions(
 			fuego.WithOpenAPIConfig(fuego.OpenAPIConfig{
 				DisableLocalSave: true,
@@ -73,10 +74,11 @@ func (s Server) Start() error {
 
 		note, ok := s.NotesMap[slug]
 		if !ok {
-			return nil, fmt.Errorf("note with slug %s not found", slug)
+			slog.Info("Note not found", "slug", slug)
+			return s.rs.NoteWithList(nil, searchQuery)
 		}
 
-		return s.rs.NoteWithList(note, searchQuery)
+		return s.rs.NoteWithList(&note, searchQuery)
 	},
 		option.Query("search", "Search query to filter notes by title"),
 	)
