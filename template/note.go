@@ -41,6 +41,7 @@ func (rs Resource) Note(note model.Note) (gomponents.Node, error) {
 		),
 
 		Div(
+			Class("prose lg:prose-xl"),
 			g.Raw(string(markdown.Markdown(string(content)))),
 		),
 	), nil

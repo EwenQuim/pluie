@@ -29,6 +29,8 @@ func (rs Resource) ListWithSearch(searchQuery string) gomponents.Node {
 		for _, note := range rs.Notes {
 			if strings.Contains(strings.ToLower(note.Title), searchLower) {
 				filteredNotes = append(filteredNotes, note)
+			} else if strings.Contains(strings.ToLower(note.Slug), searchLower) {
+				filteredNotes = append(filteredNotes, note)
 			}
 		}
 	}

@@ -13,7 +13,7 @@ func (rs Resource) Layout(node ...g.Node) g.Node {
 			Title("Pluie"),
 			Link(Rel("stylesheet"), Type("text/css"), Href("/static/style.css")),
 			Link(Rel("stylesheet"), Type("text/css"), Href("/static/tailwind.min.css")),
-			Script(Defer(), Src("https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js")),
+			Script(Defer(), Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js")),
 		),
 		Body(
 			ID("app"),
