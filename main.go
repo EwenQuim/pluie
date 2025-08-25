@@ -57,7 +57,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 		return nil, nil
 	}
 
-	fmt.Println(e, currentPath)
+	fmt.Print("Searching ", currentPath, "... ")
 	dir, err := os.ReadDir(e.BasePath + "/" + currentPath)
 	if err != nil {
 		return nil, err
@@ -94,6 +94,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 			notes = append(notes, note)
 		}
 	}
+	fmt.Println(len(notes), "notes found")
 
 	return notes, nil
 }

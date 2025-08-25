@@ -22,7 +22,7 @@ func (s Server) Start() error {
 	// Serve static files at /static
 	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
 
-	fuego.Get(server, "/{slug...}", func(ctx *fuego.ContextNoBody) (fuego.Renderer, error) {
+	fuego.Get(server, "/{slug...}", func(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug := ctx.PathParam("slug")
 		if slug == "" {
 			return s.rs.List(), nil
