@@ -3,12 +3,15 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"sort"
 
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/static"
 	"github.com/EwenQuim/pluie/template"
 
 	"github.com/go-fuego/fuego"
+	"github.com/go-fuego/fuego/option"
 )
 
 type Server struct {
@@ -16,28 +19,67 @@ type Server struct {
 	rs       template.Resource
 }
 
+// getHomeNoteSlug determines the home note slug based on priority:
+// 1. HOME_NOTE_SLUG env variable
+// 2. HOME.md note if it exists
+// 3. First note in alphabetical order
+func (s Server) getHomeNoteSlug() string {
+	// Priority 1: Check HOME_NOTE_SLUG environment variable
+	if homeSlug := os.Getenv("HOME_NOTE_SLUG"); homeSlug != "" {
+		if _, exists := s.NotesMap[homeSlug]; exists {
+			return homeSlug
+		}
+	}
+
+	// Priority 2: Check for HOME note
+	if _, exists := s.NotesMap["HOME"]; exists {
+		return "HOME"
+	}
+
+	// Priority 3: First note in alphabetical order
+	if len(s.rs.Notes) > 0 {
+		// Create a copy of notes and sort by slug
+		notes := make([]model.Note, len(s.rs.Notes))
+		copy(notes, s.rs.Notes)
+		sort.Slice(notes, func(i, j int) bool {
+			return notes[i].Slug < notes[j].Slug
+		})
+		return notes[0].Slug
+	}
+
+	// Fallback (should not happen if there are notes)
+	return ""
+}
+
 func (s Server) Start() error {
-	server := fuego.NewServer()
+	server := fuego.NewServer(
+		fuego.WithEngineOptions(
+			fuego.WithOpenAPIConfig(fuego.OpenAPIConfig{
+				DisableLocalSave: true,
+			}),
+		),
+	)
 
 	// Serve static files at /static
 	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
 
 	fuego.Get(server, "/{slug...}", func(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug := ctx.PathParam("slug")
+		searchQuery := ctx.QueryParam("search")
+
 		if slug == "" {
-			// Handle search query for home page
-			searchQuery := ctx.QueryParam("search")
-			return s.rs.ListWithSearch(searchQuery), nil
+			slug = s.getHomeNoteSlug()
 		}
 
 		note, ok := s.NotesMap[slug]
 		if !ok {
-			return nil, fmt.Errorf("Note with slug %s not found", slug)
-
+			return nil, fmt.Errorf("note with slug %s not found", slug)
 		}
-		return s.rs.Note(note)
 
-	})
+		return s.rs.NoteWithList(note, searchQuery)
+	},
+		option.Query("search", "Search query to filter notes by title"),
+	)
 
 	return server.Run()
 }

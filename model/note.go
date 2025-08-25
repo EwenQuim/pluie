@@ -6,9 +6,9 @@ import (
 )
 
 type Note struct {
-	Title   string // May contains spaces and slashes, like "articles/Hello World"
-	Slug    string // Slugified title, like "articles/hello-world"
-	Content string
+	Title   string `json:"title"` // May contains spaces and slashes, like "articles/Hello World"
+	Slug    string `json:"slug"`  // Slugified title, like "articles/hello-world"
+	Content string `json:"content"`
 }
 
 // If Slug is not defined, build it from the title

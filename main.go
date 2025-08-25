@@ -86,7 +86,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 			}
 			content := string(contentBytes)
 			note := model.Note{
-				Title:   name,
+				Title:   strings.TrimSuffix(name, ".md"),
 				Content: content,
 				Slug:    path.Join(currentPath, name),
 			}
