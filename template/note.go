@@ -49,20 +49,8 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	// Parse wiki-style links before markdown processing
 	parsedContent := rs.parseWikiLinks(string(content))
 
-	filteredNotes := rs.Notes
-
-	// Filter notes by title if search query is provided
-	if searchQuery != "" {
-		filteredNotes = make([]model.Note, 0)
-		searchLower := strings.ToLower(searchQuery)
-		for _, n := range rs.Notes {
-			if strings.Contains(strings.ToLower(n.Title), searchLower) {
-				filteredNotes = append(filteredNotes, n)
-			} else if strings.Contains(strings.ToLower(n.Slug), searchLower) {
-				filteredNotes = append(filteredNotes, n)
-			}
-		}
-	}
+	// Use the isolated search function to filter notes by filename
+	filteredNotes := SearchNotesByFilename(rs.Notes, searchQuery)
 
 	return rs.Layout(
 		Div(

@@ -18,16 +18,6 @@ func (rs Resource) Layout(node ...g.Node) g.Node {
 		Body(
 			ID("app"),
 			Class("container mx-auto"),
-			// g.Attr("hx-boost"),
-			// g.Attr("hx-push-url"),
-			// g.Attr("hx-target", "#app"),
-			// g.Attr("hx-select", "#app"),
-			// g.Attr("hx-swap", "outerHTML"),
-
-			H1(
-				Class("text-4xl font-bold text-center my-4"),
-				A(Href("/"), g.Text("Pluie")),
-			),
 			Main(
 				node...,
 			),
