@@ -54,10 +54,10 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	return rs.Layout(
 		Div(
-			Class("flex gap-6"),
+			Class("flex gap-6 h-screen"),
 			// Left sidebar with notes list
 			Div(
-				Class("w-1/4 bg-gray-50 p-4 rounded-lg"),
+				Class("w-1/4 bg-gray-50 p-4 rounded-lg flex flex-col h-full"),
 				H2(
 					Class("text-xl font-bold mb-4"),
 					g.Text("Notes"),
@@ -96,45 +96,49 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 						),
 					),
 				),
-				// Results info
-				g.If(searchQuery != "",
-					P(
-						Class("text-gray-600 mb-2 text-sm"),
-						g.Textf("Found %d notes matching \"%s\"", len(filteredNotes), searchQuery),
+				// Scrollable container for results and notes list
+				Div(
+					Class("flex-1 overflow-y-auto"),
+					// Results info
+					g.If(searchQuery != "",
+						P(
+							Class("text-gray-600 mb-2 text-sm"),
+							g.Textf("Found %d notes matching \"%s\"", len(filteredNotes), searchQuery),
+						),
 					),
-				),
-				// Notes list
-				Ul(
-					ID("notes-list"),
-					Class("space-y-1"),
-					g.Group(g.Map(filteredNotes, func(n model.Note) gomponents.Node {
-						isActive := n.Slug == slug
-						var linkClass string
-						if isActive {
-							linkClass = "block px-3 py-2 text-blue-800 bg-blue-100 rounded-md font-medium"
-						} else {
-							linkClass = "block px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
-						}
-						return Li(
-							A(
-								Href("/"+n.Slug),
-								Class(linkClass),
-								g.Text(n.Title),
-							),
-						)
-					})),
-				),
-				// Show message if no results found
-				g.If(searchQuery != "" && len(filteredNotes) == 0,
-					P(
-						Class("text-gray-500 mt-4 text-sm"),
-						g.Text("No notes found matching your search."),
+					// Notes list
+					Ul(
+						ID("notes-list"),
+						Class("space-y-1"),
+						g.Group(g.Map(filteredNotes, func(n model.Note) gomponents.Node {
+							isActive := n.Slug == slug
+							var linkClass string
+							if isActive {
+								linkClass = "block px-3 py-2 text-blue-800 bg-blue-100 rounded-md font-medium"
+							} else {
+								linkClass = "block px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+							}
+							return Li(
+								A(
+									Href("/"+n.Slug),
+									Class(linkClass),
+									g.Text(n.Title),
+								),
+							)
+						})),
+					),
+					// Show message if no results found
+					g.If(searchQuery != "" && len(filteredNotes) == 0,
+						P(
+							Class("text-gray-500 mt-4 text-sm"),
+							g.Text("No notes found matching your search."),
+						),
 					),
 				),
 			),
 			// Right content area with the note
 			Div(
-				Class("flex-1"),
+				Class("flex-1 overflow-y-auto p-4"),
 				H1(
 					Class("text-3xl font-bold mb-4"),
 					g.If(title != "", g.Text(title)),
