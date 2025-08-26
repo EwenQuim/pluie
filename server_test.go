@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/template"
 )
@@ -27,14 +28,14 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 	publicNotes := []model.Note{publicNote}
 
 	// Create tree with public notes only
-	tree := BuildTree(publicNotes)
+	tree := engine.BuildTree(publicNotes)
 
 	// Create server with filtered data
 	server := Server{
 		NotesMap: publicNotesMap,
 		Tree:     tree,
 		rs: template.Resource{
-			Tree: convertTreeNode(tree),
+			Tree: tree,
 		},
 	}
 
@@ -166,12 +167,12 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tree := BuildTree(tt.notes)
+			tree := engine.BuildTree(tt.notes)
 			server := Server{
 				NotesMap: tt.notesMap,
 				Tree:     tree,
 				rs: template.Resource{
-					Tree: convertTreeNode(tree),
+					Tree: tree,
 				},
 			}
 
@@ -201,10 +202,10 @@ func TestBuildTreeWithPrivateNotes(t *testing.T) {
 	}
 
 	// Build tree with public notes only
-	tree := BuildTree(publicNotes)
+	tree := engine.BuildTree(publicNotes)
 
 	// Verify that the tree only contains public notes
-	allTreeNotes := GetAllNotesFromTree(tree)
+	allTreeNotes := engine.GetAllNotesFromTree(tree)
 
 	if len(allTreeNotes) != 2 {
 		t.Errorf("Expected 2 public notes in tree, got %d", len(allTreeNotes))

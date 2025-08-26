@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/static"
 	"github.com/EwenQuim/pluie/template"
@@ -16,7 +17,7 @@ import (
 
 type Server struct {
 	NotesMap map[string]model.Note // Slug -> Note
-	Tree     *TreeNode             // Tree structure of notes
+	Tree     *engine.TreeNode      // Tree structure of notes
 	rs       template.Resource
 }
 
@@ -40,7 +41,7 @@ func (s Server) getHomeNoteSlug() string {
 	// Priority 3: First note in alphabetical order
 	if s.Tree != nil {
 		// Get all notes from tree and sort by slug
-		notes := GetAllNotesFromTree(s.Tree)
+		notes := engine.GetAllNotesFromTree(s.Tree)
 		if len(notes) > 0 {
 			sort.Slice(notes, func(i, j int) bool {
 				return notes[i].Slug < notes[j].Slug
@@ -54,8 +55,12 @@ func (s Server) getHomeNoteSlug() string {
 }
 
 func (s Server) Start() error {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "9999"
+	}
 	server := fuego.NewServer(
-		fuego.WithAddr(":9999"),
+		fuego.WithAddr(":"+port),
 		fuego.WithEngineOptions(
 			fuego.WithOpenAPIConfig(fuego.OpenAPIConfig{
 				DisableLocalSave: true,

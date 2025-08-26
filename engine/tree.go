@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"sort"
@@ -15,6 +15,23 @@ type TreeNode struct {
 	Note     *model.Note `json:"note"`     // Reference to the note if this is a note node
 	Children []*TreeNode `json:"children"` // Child nodes (subfolders and notes)
 	IsOpen   bool        `json:"isOpen"`   // Whether the folder is expanded in the UI
+}
+
+// AllNotes yields all notes in the tree using Go 1.23 iterator pattern
+func (t *TreeNode) AllNotes(yield func(*TreeNode) bool) {
+	if t == nil {
+		return
+	}
+
+	if !t.IsFolder && t.Note != nil {
+		if !yield(t) {
+			return
+		}
+	}
+
+	for _, child := range t.Children {
+		child.AllNotes(yield)
+	}
 }
 
 // BuildTree creates a tree structure from a list of notes
@@ -187,7 +204,10 @@ func FilterTreeBySearch(root *TreeNode, query string) *TreeNode {
 func filterChildren(source *TreeNode, target *TreeNode, query string) {
 	for _, child := range source.Children {
 		if child.IsFolder {
-			// For folders, check if any descendant matches
+			// Check if folder name matches the search query
+			folderMatches := strings.Contains(strings.ToLower(child.Name), query)
+
+			// Create temp folder to check for matching descendants
 			tempFolder := &TreeNode{
 				Name:     child.Name,
 				Path:     child.Path,
@@ -196,10 +216,18 @@ func filterChildren(source *TreeNode, target *TreeNode, query string) {
 				IsOpen:   true, // Open folders in search results
 			}
 
+			// Recursively filter children
 			filterChildren(child, tempFolder, query)
 
-			// If folder has matching children, include it
-			if len(tempFolder.Children) > 0 {
+			// Include folder if:
+			// 1. The folder name itself matches, OR
+			// 2. The folder has matching descendants
+			if folderMatches || len(tempFolder.Children) > 0 {
+				// If folder name matches, include ALL its contents
+				if folderMatches {
+					tempFolder = copyEntireSubtree(child)
+					tempFolder.IsOpen = true // Ensure matched folders are open
+				}
 				target.Children = append(target.Children, tempFolder)
 			}
 		} else {
@@ -216,4 +244,26 @@ func filterChildren(source *TreeNode, target *TreeNode, query string) {
 			}
 		}
 	}
+}
+
+// copyEntireSubtree creates a complete copy of a subtree with all its contents
+func copyEntireSubtree(source *TreeNode) *TreeNode {
+	if source == nil {
+		return nil
+	}
+
+	copy := &TreeNode{
+		Name:     source.Name,
+		Path:     source.Path,
+		IsFolder: source.IsFolder,
+		Note:     source.Note,
+		IsOpen:   true, // Open all folders in search results
+		Children: make([]*TreeNode, len(source.Children)),
+	}
+
+	for i, child := range source.Children {
+		copy.Children[i] = copyEntireSubtree(child)
+	}
+
+	return copy
 }

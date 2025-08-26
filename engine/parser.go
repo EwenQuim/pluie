@@ -1,4 +1,4 @@
-package template
+package engine
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
-// parseWikiLinks transforms [[linktitle]] and [[linktitle|displayname]] into [title](link) format
-func (rs Resource) parseWikiLinks(content string) string {
+// ParseWikiLinks transforms [[linktitle]] and [[linktitle|displayname]] into [title](link) format
+func ParseWikiLinks(content string, tree *TreeNode) string {
 	// Regular expression to match [[linktitle]] and [[linktitle|displayname]] patterns
 	// Allow empty content between brackets
 	re := regexp.MustCompile(`\[\[([^\]]*)\]\]`)
@@ -47,7 +47,7 @@ func (rs Resource) parseWikiLinks(content string) string {
 
 		// Find the corresponding note by title in the tree using iterator
 		var foundNote *model.Note
-		rs.Tree.AllNotes(func(noteNode *TreeNode) bool {
+		tree.AllNotes(func(noteNode *TreeNode) bool {
 			if noteNode.Note != nil && noteNode.Note.Title == pageTitle {
 				foundNote = noteNode.Note
 				return false // Stop iteration

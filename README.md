@@ -1,164 +1,255 @@
-# Pluie - Markdown Wiki Server
+# Pluie 🌧️ - Modern Markdown Wiki Server
 
-Pluie is a Go-based web application that serves Obsidian-style markdown notes with wiki-style linking and live search functionality.
+Pluie is a lightning-fast, privacy-focused markdown wiki server built in Go that transforms your Obsidian vault into a beautiful, searchable website. Designed for simplicity and performance, Pluie offers the perfect balance between powerful features and ease of use.
 
-## Features
+## ✨ Core Features
 
-- **Wiki-style links**: Create links between notes using `[[Note Name]]` syntax
-- **Live search**: Real-time search through your notes
-- **Markdown rendering**: Full markdown support with syntax highlighting
-- **Docker deployment**: Easy containerized deployment
-- **Volume persistence**: Your notes are stored persistently in the `/vault` directory
+### 🔗 **Intelligent Wiki Linking**
 
-## Docker Setup
+- **Obsidian-compatible**: Full support for `[[Note Name]]` and `[[Note Name|Display Text]]` syntax
+- **Smart backreferences**: Automatically tracks which notes reference each other
+- **Broken link handling**: Gracefully handles missing or private notes
+- **Cross-folder linking**: Link between notes in different directories seamlessly
 
-### Prerequisites
+### 🔍 **Real-Time Search**
 
-- Docker and Docker Compose installed on your system
+- **Instant results**: Live search as you type
+- **Smart scoring**: Prioritizes filename matches over folder path matches
+- **Keyboard shortcuts**: `Cmd/Ctrl + K` to focus search instantly
+- **Disabled JavaScript fallback**: Works even with JavaScript disabled
 
-### Quick Start
+### 🗂️ **Hierarchical Organization**
 
-1. **Clone the repository** (if not already done):
+- **Folder-based structure**: Maintains your existing Obsidian folder organization
+- **Collapsible tree view**: Expand/collapse folders with persistent state
+- **Bulk operations**: Expand all or collapse all folders with one click
+- **Visual hierarchy**: Clear indentation and folder icons
+
+### 🔒 **Granular Privacy Control**
+
+- **Note-level privacy**: Control visibility with frontmatter `public: true/false`
+- **Folder-level privacy**: Set default privacy for entire folders using `.pluie` files
+- **Server-level defaults**: Configure global public/private behavior
+- **Security-first**: Private notes are completely hidden from public access
+
+### 📖 **Rich Content Rendering**
+
+- **Full Markdown support**: CommonMark compliant with extensions
+- **Syntax highlighting**: Code blocks with language-specific highlighting
+- **Frontmatter display**: YAML metadata beautifully rendered
+- **Table of contents**: Auto-generated TOC with smooth scrolling
+- **Responsive design**: Optimized for desktop and mobile viewing
+
+### ⚡ **Performance & Deployment**
+
+- **Single binary**: No dependencies, just one executable file
+- **Docker ready**: Complete containerization with hot-reload development
+- **Memory efficient**: Loads all notes into memory for instant access
+- **Fast startup**: Builds backreferences and tree structure on launch
+- **Static assets**: Embedded CSS and JavaScript, no external dependencies
+
+## 🏆 Competitive Advantages
+
+### **vs. Obsidian Publish**
+
+#### ✅ **Pluie Advantages**
+
+- **🆓 Completely free**: No subscription fees or usage limits
+- **🏠 Self-hosted**: Full control over your data and infrastructure
+- **🔧 Customizable**: Open source with full customization potential
+- **🐳 Docker native**: Easy deployment with container orchestration
+- **📁 Folder privacy**: Granular privacy control at folder level
+- **⚡ Instant search**: Real-time search without page reloads
+- **🎯 Lightweight**: Minimal resource usage and fast performance
+- **🔒 Privacy-first**: Your notes NEVER leave your infrastructure
+
+#### ⚠️ **Obsidian Publish Advantages**
+
+- **☁️ Managed hosting**: No server maintenance required
+- **🎨 Advanced theming**: More sophisticated customization options
+- **📊 Analytics**: Built-in visitor analytics and insights
+- **🌐 CDN delivery**: Global content delivery network
+- **💼 Commercial support**: Professional support and SLA options
+
+### **vs. Hugo** (or other static site generators)
+
+#### ✅ **Pluie Advantages**
+
+- **🚀 Zero configuration**: Works out of the box with your existing notes
+- **🔄 Dynamic content**: No build step required, changes appear instantly
+- **🔗 Native wiki links**: Built-in support for `[[]]` syntax without plugins
+- **🔍 Live search**: Real-time search functionality included
+- **📱 Interactive UI**: Dynamic folder navigation and TOC
+- **🔒 Privacy controls**: Built-in public/private note management
+- **📊 Backreferences**: Automatic bidirectional linking
+- **🎯 Purpose-built**: Specifically designed for knowledge bases and wikis
+
+#### ⚠️ **Hugo Advantages**
+
+- **📈 Massive ecosystem**: Thousands of themes and plugins available
+- **🏗️ Static generation**: Better SEO and caching for public sites
+- **🎨 Advanced templating**: More flexible content presentation
+- **📚 Multi-format support**: Beyond markdown (AsciiDoc, reStructuredText, etc.)
+- **🌐 Mature platform**: Larger community and extensive documentation
+
+## 🚀 Quick Start
+
+### Docker (Recommended)
+
+1. **Clone and setup**:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/EwenQuim/pluie.git
    cd pluie
+   mkdir vault
+   echo "# Welcome to Pluie" > vault/HOME.md
    ```
 
-2. **Add your markdown files** to the `vault/` directory:
-
-   ```bash
-   # Your markdown files go here
-   vault/
-   ├── HOME.md          # Default home page
-   ├── notes/
-   ├── projects/
-   └── ...
-   ```
-
-3. **Start the application**:
+2. **Start the server**:
 
    ```bash
    docker-compose up --build
    ```
 
-4. **Access the application**:
-   Open your browser and navigate to `http://localhost:9999`
+3. **Access your wiki**: Open `http://localhost:9999`
 
-### Configuration
+### Development with Hot Reload
 
-The docker-compose.yml file includes the following configuration:
+```bash
+# Start development environment with automatic rebuilds
+docker compose -f docker-compose.dev.yml up --build --watch
+```
 
-- **Port mapping**: `9999:9999` (host:container)
-- **Volume mount**: `./vault:/vault` (your local vault directory is mounted to `/vault` in the container)
-- **Environment variables**:
-  - `HOME_NOTE_SLUG=HOME` - Sets the default home page to `HOME.md`
+### Native Installation
 
-### Directory Structure
+```bash
+# Install and run locally
+go mod download
+go run . -path ./vault
+```
+
+## 📁 Directory Structure
 
 ```
 pluie/
-├── Dockerfile              # Multi-stage Docker build
-├── docker-compose.yml      # Docker Compose configuration
-├── vault/                  # Your markdown notes directory
+├── vault/                  # Your markdown notes
 │   ├── HOME.md            # Default home page
-│   └── ...                # Your other markdown files
-├── main.go                # Application entry point
-├── server.go              # Web server implementation
-└── ...                    # Other Go source files
+│   ├── projects/          # Organized in folders
+│   │   ├── .pluie         # Folder privacy settings
+│   │   └── project1.md
+│   └── private/
+│       ├── .pluie         # Mark entire folder as private
+│       └── secrets.md
+├── docker-compose.yml     # Production deployment
+├── docker-compose.dev.yml # Development with hot reload
+└── Dockerfile            # Multi-stage build
 ```
 
-### Usage
-
-1. **Home Page**: The application will serve the note specified by `HOME_NOTE_SLUG` environment variable (defaults to `HOME.md`)
-
-2. **Navigation**:
-
-   - Browse notes using the sidebar
-   - Use the search functionality to find specific notes
-   - Click on wiki-style links `[[Note Name]]` to navigate between notes
-
-3. **Adding Notes**:
-   - Add new `.md` files to the `vault/` directory
-   - The application will automatically discover them on restart
-   - Use wiki-style linking to connect your notes
-
-### Docker Commands
-
-#### Production Commands
-
-```bash
-# Start the application
-docker-compose up
-
-# Start with rebuild
-docker-compose up --build
-
-# Run in background
-docker-compose up -d
-
-# Stop the application
-docker-compose down
-
-# View logs
-docker-compose logs -f
-```
-
-#### Development Commands with Docker Watch
-
-```bash
-# Start development environment with hot reloading
-docker compose -f docker-compose.dev.yml up --build --watch
-
-# Start development environment in background with watch
-docker compose -f docker-compose.dev.yml up -d --watch
-
-# Stop development environment
-docker compose -f docker-compose.dev.yml down
-
-# View development logs
-docker compose -f docker-compose.dev.yml logs -f
-```
-
-**Docker Watch Features:**
-
-- **Hot Reloading**: Automatically rebuilds and restarts the application when Go source files change
-- **File Sync**: Syncs vault directory changes without container restart
-- **Air Integration**: Uses Air for fast Go application reloading
-- **Development Optimized**: Faster rebuilds with development-focused Dockerfile
+## ⚙️ Configuration
 
 ### Environment Variables
 
-- `HOME_NOTE_SLUG`: Specifies which note to use as the home page (default: looks for HOME.md, then first alphabetical note)
-- `PATH_FLAG`: Internal variable set to `/vault` in the container
-
-### Troubleshooting
-
-1. **Port already in use**: If port 9999 is already in use, modify the port mapping in `docker-compose.yml`:
-
-   ```yaml
-   ports:
-     - "8080:9999" # Use port 8080 instead
-   ```
-
-2. **Notes not appearing**: Ensure your markdown files are in the `vault/` directory and have `.md` extension
-
-3. **Permission issues**: Make sure the `vault/` directory is readable by the Docker container
-
-## Development
-
-To run the application locally without Docker:
-
 ```bash
-# Install dependencies
-go mod download
+# Site customization
+SITE_TITLE="My Knowledge Base"
+SITE_ICON="/static/icon.png"
+SITE_DESCRIPTION="Personal notes and documentation"
 
-# Run the application
-go run . -path ./vault
+# Privacy settings
+PUBLIC_BY_DEFAULT=false        # Default: false (notes are private)
+HOME_NOTE_SLUG=HOME           # Default home page
 
-# Or build and run
-go build -o pluie
-./pluie -path ./vault
+# Server settings
+PORT=9999                     # Default: 9999
 ```
 
-The application will be available at `http://localhost:9999`.
+### Privacy Control
+
+#### Note-level (frontmatter):
+
+```yaml
+---
+public: true
+title: "My Public Note"
+tags: [documentation, public]
+---
+# My Public Note
+This note will be visible to everyone.
+```
+
+#### Folder-level (`.pluie` file):
+
+```yaml
+---
+public: false
+description: "Private project notes"
+---
+```
+
+## 🎯 Use Cases
+
+- **📚 Personal Knowledge Base**: Organize your learning and research
+- **👥 Team Documentation**: Share knowledge within your organization
+- **📖 Project Wikis**: Document projects with interconnected notes
+- **🎓 Academic Research**: Manage research notes with citations and references
+- **💼 Company Handbooks**: Internal documentation with privacy controls
+- **🏠 Digital Gardens**: Cultivate and share your thoughts publicly
+
+## 🔧 Advanced Features
+
+### Wiki Link Processing
+
+- Supports both `[[Note Name]]` and `[[Note Name|Display Text]]` formats
+- Automatically resolves links across folder boundaries
+- Handles special characters and spaces in note names
+- Graceful fallback for missing or private notes
+
+### Search Capabilities
+
+- **Filename priority**: Matches in note titles ranked higher
+- **Folder path matching**: Finds notes by their location
+- **Real-time filtering**: Updates results as you type
+- **Keyboard navigation**: Full keyboard accessibility
+
+### Table of Contents
+
+- **Auto-generation**: Extracts headings from markdown content
+- **Smooth scrolling**: Click to jump to any section
+- **Active highlighting**: Shows current reading position
+- **Nested structure**: Supports all heading levels (H1-H6)
+
+## 🤝 Contributing
+
+Pluie is open source and welcomes contributions! Whether it's bug reports, feature requests, or code contributions, we appreciate your help in making Pluie better.
+
+```bash
+# Development setup
+git clone https://github.com/EwenQuim/pluie.git
+cd pluie
+go mod download
+
+# Run tests
+go test ./...
+
+# Start development server
+go run . -path ./testdata/test_notes
+```
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
+
+Built with:
+
+- [Go](https://golang.org/) - Fast, reliable backend
+- [Fuego](https://github.com/go-fuego/fuego) - Modern Go web framework
+- [Gomponents](https://github.com/maragudk/gomponents) - Type-safe HTML generation
+- [HTMX](https://htmx.org/) - Dynamic interactions without complex JavaScript
+
+---
+
+**Ready to transform your notes into a beautiful wiki?** 🚀
+
+[Get Started](#-quick-start) | [View Examples](https://github.com/EwenQuim/pluie/tree/main/testdata) | [Report Issues](https://github.com/EwenQuim/pluie/issues)

@@ -6,16 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 )
 
 // buildTestTree creates a tree structure from a list of notes for testing
-func buildTestTree(notes []model.Note) *TreeNode {
-	root := &TreeNode{
+func buildTestTree(notes []model.Note) *engine.TreeNode {
+	root := &engine.TreeNode{
 		Name:     "Notes",
 		Path:     "",
 		IsFolder: true,
-		Children: make([]*TreeNode, 0),
+		Children: make([]*engine.TreeNode, 0),
 		IsOpen:   true,
 	}
 
@@ -30,12 +31,12 @@ func buildTestTree(notes []model.Note) *TreeNode {
 		// Create a copy of the note for the pointer
 		noteCopy := note
 		// For simplicity in tests, put all notes at root level
-		noteNode := &TreeNode{
+		noteNode := &engine.TreeNode{
 			Name:     note.Title,
 			Path:     note.Slug,
 			IsFolder: false,
 			Note:     &noteCopy,
-			Children: make([]*TreeNode, 0),
+			Children: make([]*engine.TreeNode, 0),
 		}
 		root.Children = append(root.Children, noteNode)
 	}
@@ -205,7 +206,7 @@ func TestParseWikiLinks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := rs.parseWikiLinks(tt.input)
+			result := engine.ParseWikiLinks(tt.input, rs.Tree)
 			if result != tt.expected {
 				t.Errorf("parseWikiLinks() = %q, want %q", result, tt.expected)
 			}
@@ -216,18 +217,18 @@ func TestParseWikiLinks(t *testing.T) {
 func TestParseWikiLinksWithEmptyNotes(t *testing.T) {
 	// Test with empty tree
 	rs := Resource{
-		Tree: &TreeNode{
+		Tree: &engine.TreeNode{
 			Name:     "Notes",
 			Path:     "",
 			IsFolder: true,
-			Children: []*TreeNode{},
+			Children: []*engine.TreeNode{},
 			IsOpen:   true,
 		},
 	}
 
 	input := "This [[Test Note]] should not be found."
 	expected := "This Test Note should not be found."
-	result := rs.parseWikiLinks(input)
+	result := engine.ParseWikiLinks(input, rs.Tree)
 
 	if result != expected {
 		t.Errorf("parseWikiLinks() with empty notes = %q, want %q", result, expected)
@@ -257,7 +258,7 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 	content += "End"
 
 	// This should complete reasonably quickly
-	result := rs.parseWikiLinks(content)
+	result := engine.ParseWikiLinks(content, rs.Tree)
 
 	// Verify that some transformations occurred
 	if !strings.Contains(result, "[Note 0](/note-0)") {
@@ -279,6 +280,6 @@ func BenchmarkParseWikiLinks(b *testing.B) {
 	content := "This is a [[Test Note]] with [[Another Note]] and some [[Missing Link]] content."
 
 	for b.Loop() {
-		rs.parseWikiLinks(content)
+		engine.ParseWikiLinks(content, rs.Tree)
 	}
 }

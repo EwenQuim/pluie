@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/template"
 	"github.com/adrg/frontmatter"
@@ -41,16 +42,20 @@ func main() {
 	// Filter out private notes
 	fmt.Print("Filtering private notes... ")
 	publicNotes := make([]model.Note, 0)
-	for _, note := range notes {
-		if note.IsPublic {
-			publicNotes = append(publicNotes, note)
+	if publicByDefault {
+		publicNotes = notes
+	} else {
+		for _, note := range notes {
+			if note.IsPublic {
+				publicNotes = append(publicNotes, note)
+			}
 		}
 	}
 	fmt.Printf("%d public notes out of %d total\n", len(publicNotes), len(notes))
 
 	// Build backreferences for public notes only
 	fmt.Print("Building backreferences... ")
-	publicNotes = template.BuildBackreferences(publicNotes)
+	publicNotes = engine.BuildBackreferences(publicNotes)
 	fmt.Println("done")
 
 	notesMap := make(map[string]model.Note)
@@ -60,14 +65,14 @@ func main() {
 
 	// Build tree structure with public notes only
 	fmt.Print("Building tree structure... ")
-	tree := BuildTree(publicNotes)
+	tree := engine.BuildTree(publicNotes)
 	fmt.Println("done")
 
 	err = Server{
 		NotesMap: notesMap,
 		Tree:     tree,
 		rs: template.Resource{
-			Tree: convertTreeNode(tree),
+			Tree: tree,
 		},
 	}.Start()
 	if err != nil {
@@ -82,7 +87,7 @@ type Explorer struct {
 }
 
 func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
-	if strings.HasPrefix(currentPath, "/.") || strings.Contains(currentPath, "node_modules") {
+	if strings.HasPrefix(currentPath, "/.") || strings.Contains(currentPath, "node_modules") || strings.Contains(currentPath, ".git") {
 		return nil, nil
 	}
 
@@ -165,26 +170,4 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 	fmt.Println(len(notes), "notes found")
 
 	return notes, nil
-}
-
-// convertTreeNode converts main.TreeNode to template.TreeNode
-func convertTreeNode(node *TreeNode) *template.TreeNode {
-	if node == nil {
-		return nil
-	}
-
-	templateNode := &template.TreeNode{
-		Name:     node.Name,
-		Path:     node.Path,
-		IsFolder: node.IsFolder,
-		Note:     node.Note,
-		IsOpen:   node.IsOpen,
-		Children: make([]*template.TreeNode, len(node.Children)),
-	}
-
-	for i, child := range node.Children {
-		templateNode.Children[i] = convertTreeNode(child)
-	}
-
-	return templateNode
 }

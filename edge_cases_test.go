@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 )
 
@@ -285,7 +286,7 @@ func TestMemoryUsage(t *testing.T) {
 		}
 
 		// Build tree
-		tree := BuildTree(publicNotes)
+		tree := engine.BuildTree(publicNotes)
 		if tree == nil {
 			t.Fatalf("Tree building failed at iteration %d", i)
 		}

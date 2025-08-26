@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/maragudk/gomponents"
 	g "github.com/maragudk/gomponents"
@@ -15,34 +16,7 @@ import (
 )
 
 type Resource struct {
-	Tree *TreeNode
-}
-
-// TreeNode represents a node in the file tree structure (imported from main package)
-type TreeNode struct {
-	Name     string      `json:"name"`     // Display name (folder name or note title)
-	Path     string      `json:"path"`     // Full path from root
-	IsFolder bool        `json:"isFolder"` // True if this is a folder, false if it's a note
-	Note     *model.Note `json:"note"`     // Reference to the note if this is a note node
-	Children []*TreeNode `json:"children"` // Child nodes (subfolders and notes)
-	IsOpen   bool        `json:"isOpen"`   // Whether the folder is expanded in the UI
-}
-
-// AllNotes yields all notes in the tree using Go 1.23 iterator pattern
-func (t *TreeNode) AllNotes(yield func(*TreeNode) bool) {
-	if t == nil {
-		return
-	}
-
-	if !t.IsFolder && t.Note != nil {
-		if !yield(t) {
-			return
-		}
-	}
-
-	for _, child := range t.Children {
-		child.AllNotes(yield)
-	}
+	Tree *engine.TreeNode
 }
 
 // MapMap creates nodes from a map
@@ -84,99 +58,8 @@ func sortKeys(keys []string) {
 	}
 }
 
-// filterTreeBySearch filters the tree to only show nodes that match the search query
-func (rs Resource) filterTreeBySearch(root *TreeNode, query string) *TreeNode {
-	if root == nil || query == "" {
-		return root
-	}
-
-	query = strings.ToLower(query)
-
-	// Create a new root for filtered results
-	filteredRoot := &TreeNode{
-		Name:     root.Name,
-		Path:     root.Path,
-		IsFolder: true,
-		Children: make([]*TreeNode, 0),
-		IsOpen:   true,
-	}
-
-	// Recursively filter children
-	rs.filterChildren(root, filteredRoot, query)
-
-	return filteredRoot
-}
-
-// filterChildren recursively filters children based on search query
-func (rs Resource) filterChildren(source *TreeNode, target *TreeNode, query string) {
-	for _, child := range source.Children {
-		if child.IsFolder {
-			// Check if folder name matches the search query
-			folderMatches := strings.Contains(strings.ToLower(child.Name), query)
-
-			// Create temp folder to check for matching descendants
-			tempFolder := &TreeNode{
-				Name:     child.Name,
-				Path:     child.Path,
-				IsFolder: true,
-				Children: make([]*TreeNode, 0),
-				IsOpen:   true, // Open folders in search results
-			}
-
-			// Recursively filter children
-			rs.filterChildren(child, tempFolder, query)
-
-			// Include folder if:
-			// 1. The folder name itself matches, OR
-			// 2. The folder has matching descendants
-			if folderMatches || len(tempFolder.Children) > 0 {
-				// If folder name matches, include ALL its contents
-				if folderMatches {
-					tempFolder = rs.copyEntireSubtree(child)
-					tempFolder.IsOpen = true // Ensure matched folders are open
-				}
-				target.Children = append(target.Children, tempFolder)
-			}
-		} else {
-			// For notes, check if title matches
-			if strings.Contains(strings.ToLower(child.Name), query) {
-				noteNode := &TreeNode{
-					Name:     child.Name,
-					Path:     child.Path,
-					IsFolder: false,
-					Note:     child.Note,
-					Children: make([]*TreeNode, 0),
-				}
-				target.Children = append(target.Children, noteNode)
-			}
-		}
-	}
-}
-
-// copyEntireSubtree creates a complete copy of a subtree with all its contents
-func (rs Resource) copyEntireSubtree(source *TreeNode) *TreeNode {
-	if source == nil {
-		return nil
-	}
-
-	copy := &TreeNode{
-		Name:     source.Name,
-		Path:     source.Path,
-		IsFolder: source.IsFolder,
-		Note:     source.Note,
-		IsOpen:   true, // Open all folders in search results
-		Children: make([]*TreeNode, len(source.Children)),
-	}
-
-	for i, child := range source.Children {
-		copy.Children[i] = rs.copyEntireSubtree(child)
-	}
-
-	return copy
-}
-
 // renderTreeNode renders a single tree node with its children
-func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents.Node {
+func (rs Resource) renderTreeNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
 	if node == nil {
 		return g.Text("")
 	}
@@ -215,7 +98,7 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 					g.If(!node.IsOpen,
 						g.Attr("style", "display: none;"),
 					),
-					g.Group(g.Map(node.Children, func(child *TreeNode) gomponents.Node {
+					g.Group(g.Map(node.Children, func(child *engine.TreeNode) gomponents.Node {
 						return rs.renderTreeNode(child, currentSlug)
 					})),
 				),
@@ -240,24 +123,6 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 			),
 		)
 	}
-}
-
-// countNotesInTree counts the total number of notes in a tree
-func (rs Resource) countNotesInTree(node *TreeNode) int {
-	if node == nil {
-		return 0
-	}
-
-	count := 0
-	if !node.IsFolder && node.Note != nil {
-		count = 1
-	}
-
-	for _, child := range node.Children {
-		count += rs.countNotesInTree(child)
-	}
-
-	return count
 }
 
 // TOCItem represents a table of contents item
@@ -374,17 +239,15 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	}
 
 	// Parse wiki-style links before markdown processing
-	parsedContent := rs.parseWikiLinks(string(content))
+	parsedContent := engine.ParseWikiLinks(string(content), rs.Tree)
 
 	// Extract headings for table of contents
 	tocItems := extractHeadings(parsedContent)
 
 	// Filter tree based on search query
-	var displayTree *TreeNode
+	displayTree := rs.Tree
 	if searchQuery != "" {
-		displayTree = rs.filterTreeBySearch(rs.Tree, searchQuery)
-	} else {
-		displayTree = rs.Tree
+		displayTree = engine.FilterTreeBySearch(rs.Tree, searchQuery)
 	}
 
 	// Get site title, icon, and description from environment variables
@@ -447,7 +310,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 							Value(searchQuery),
 							Class("block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"),
 							g.Attr("hx-get", "/"+slug),
-							g.Attr("hx-trigger", "input changed delay:300ms, search"),
+							g.Attr("hx-trigger", "input changed delay:200ms, search"),
 							g.Attr("hx-target", "#notes-list"),
 							g.Attr("hx-select", "#notes-list"),
 							g.Attr("hx-swap", "outerHTML"),
@@ -490,7 +353,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 					g.If(searchQuery != "",
 						P(
 							Class("text-gray-600 mb-2 text-sm"),
-							g.Textf("Found %d notes matching \"%s\"", rs.countNotesInTree(displayTree), searchQuery),
+							g.Textf("Found %d notes matching \"%s\"", countNotesInTree(displayTree), searchQuery),
 						),
 					),
 					// Notes tree
@@ -500,7 +363,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 						g.If(displayTree != nil && len(displayTree.Children) > 0,
 							Ul(
 								Class(""),
-								g.Group(g.Map(displayTree.Children, func(child *TreeNode) gomponents.Node {
+								g.Group(g.Map(displayTree.Children, func(child *engine.TreeNode) gomponents.Node {
 									return rs.renderTreeNode(child, slug)
 								})),
 							),
@@ -581,4 +444,22 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 			),
 		),
 	), nil
+}
+
+// countNotesInTree counts the total number of notes in a template tree
+func countNotesInTree(node *engine.TreeNode) int {
+	if node == nil {
+		return 0
+	}
+
+	count := 0
+	if !node.IsFolder && node.Note != nil {
+		count = 1
+	}
+
+	for _, child := range node.Children {
+		count += countNotesInTree(child)
+	}
+
+	return count
 }
