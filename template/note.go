@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/EwenQuim/pluie/model"
@@ -140,7 +141,7 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 			Div(
 				Class("flex items-center py-1"),
 				Button(
-					Class("flex items-center text-left w-full px-2 py-1 text-gray-700 hover:bg-gray-100 rounded"),
+					Class("flex items-center text-left w-full px-2 py-1 text-gray-900 hover:bg-gray-50 border-l-2 border-transparent hover:border-gray-300"),
 					g.Attr("onclick", fmt.Sprintf("toggleFolder('%s')", node.Path)),
 					// Folder icon (chevron)
 					Span(
@@ -152,11 +153,6 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 						g.If(!node.IsOpen,
 							g.Text("▶"),
 						),
-					),
-					// Folder icon
-					Span(
-						Class("mr-2"),
-						g.Text("📁"),
 					),
 					g.Text(node.Name),
 				),
@@ -183,20 +179,16 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 		isActive := node.Note != nil && node.Note.Slug == currentSlug
 		var linkClass string
 		if isActive {
-			linkClass = "flex items-center px-2 py-1 text-blue-800 bg-blue-100 rounded-md font-medium"
+			linkClass = "flex items-center px-2 py-1 text-purple-600 bg-purple-50 border-l-2 border-purple-600 font-medium"
 		} else {
-			linkClass = "flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+			linkClass = "flex items-center px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l-2 border-transparent hover:border-gray-300"
 		}
 
 		return Li(
 			A(
 				Href("/"+node.Path),
 				Class(linkClass),
-				// Note icon
-				Span(
-					Class("mr-2"),
-					g.Text("📄"),
-				),
+				g.Attr("hx-boost", "true"),
 				g.Text(node.Name),
 			),
 		)
@@ -255,45 +247,83 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 		displayTree = rs.Tree
 	}
 
+	// Get site title, icon, and description from environment variables
+	siteTitle := os.Getenv("SITE_TITLE")
+	if siteTitle == "" {
+		siteTitle = "Pluie"
+	}
+	siteIcon := os.Getenv("SITE_ICON")
+	siteDescription := os.Getenv("SITE_DESCRIPTION")
+
 	return rs.Layout(
 		Div(
 			Class("flex gap-6 h-screen"),
 			// Left sidebar with notes list
 			Div(
-				Class("w-1/4 bg-gray-50 p-4 rounded-lg flex flex-col h-full"),
-				H2(
-					Class("text-xl font-bold mb-4"),
-					g.Text("Notes"),
+				Class("w-1/4 bg-white border-r border-gray-200 p-4 flex flex-col h-full"),
+				// Site header with title and icon
+				Div(
+					Class("mb-6 pb-4 border-b border-gray-200"),
+					Div(
+						Class("flex items-center gap-3 mb-2"),
+						// Site icon
+						g.If(siteIcon != "",
+							Img(
+								Src(siteIcon),
+								Alt("Site Icon"),
+								Class("w-8 h-8 object-contain"),
+							),
+						),
+						// Site title
+						H1(
+							Class("text-xl font-bold text-gray-900"),
+							g.Text(siteTitle),
+						),
+					),
+					// Site description
+					g.If(siteDescription != "",
+						P(
+							Class("text-sm text-gray-500 italic"),
+							g.Text(siteDescription),
+						),
+					),
 				),
 				// Search form
 				Form(
 					Method("GET"),
 					Action("/"+slug),
-					Class("mb-4"),
+					Class("mb-6"),
 					g.Attr("hx-boost", "true"),
 					g.Attr("hx-push-url", "true"),
 					g.Attr("hx-target", "#notes-list"),
 					g.Attr("hx-select", "#notes-list"),
 					g.Attr("hx-swap", "outerHTML"),
 					Div(
-						Class("flex gap-2"),
+						Class("relative"),
 						Input(
 							Type("text"),
 							Name("search"),
-							Placeholder("Search notes..."),
+							Placeholder("Search page or heading..."),
 							Value(searchQuery),
-							Class("flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"),
+							Class("block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"),
 							g.Attr("hx-get", "/"+slug),
-							g.Attr("hx-trigger", "input changed delay:100ms, search"),
+							g.Attr("hx-trigger", "input changed delay:300ms, search"),
 							g.Attr("hx-target", "#notes-list"),
 							g.Attr("hx-select", "#notes-list"),
 							g.Attr("hx-swap", "outerHTML"),
 							g.Attr("hx-push-url", "true"),
 						),
+						Div(
+							Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
+							Span(
+								Class("text-gray-400 text-sm"),
+								g.Text("🔍"),
+							),
+						),
 						NoScript(
 							Button(
 								Type("submit"),
-								Class("px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"),
+								Class("absolute inset-y-0 right-0 pr-3 flex items-center"),
 								g.Text("Search"),
 							),
 						),

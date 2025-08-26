@@ -9,6 +9,9 @@ services:
       - ./vault:/vault
     environment:
       - HOME_NOTE_SLUG=ACCUEIL
+      - SITE_TITLE=Pluie
+      - SITE_DESCRIPTION=My personal knowledge base
+      - SITE_ICON=https://avatars.githubusercontent.com/u/46993939?v=4
     develop:
       watch:
         - action: rebuild
