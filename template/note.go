@@ -3,6 +3,7 @@ package template
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/EwenQuim/pluie/model"
@@ -29,12 +30,43 @@ type TreeNode struct {
 	IsOpen   bool        `json:"isOpen"`   // Whether the folder is expanded in the UI
 }
 
+// MapMap creates nodes from a map
 func MapMap[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
 	var nodes []g.Node
 	for k, v := range ts {
 		nodes = append(nodes, cb(k, v))
 	}
 	return nodes
+}
+
+// MapMapSorted creates nodes from a map with keys sorted alphabetically
+func MapMapSorted[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
+	// Get all keys and sort them
+	keys := make([]string, 0, len(ts))
+	for k := range ts {
+		keys = append(keys, k)
+	}
+
+	// Sort keys alphabetically (case-insensitive)
+	sortKeys(keys)
+
+	// Create nodes in sorted order
+	var nodes []g.Node
+	for _, k := range keys {
+		nodes = append(nodes, cb(k, ts[k]))
+	}
+	return nodes
+}
+
+// sortKeys sorts a slice of strings alphabetically (case-insensitive)
+func sortKeys(keys []string) {
+	for i := 0; i < len(keys)-1; i++ {
+		for j := i + 1; j < len(keys); j++ {
+			if strings.ToLower(keys[i]) > strings.ToLower(keys[j]) {
+				keys[i], keys[j] = keys[j], keys[i]
+			}
+		}
+	}
 }
 
 // filterTreeBySearch filters the tree to only show nodes that match the search query
@@ -141,11 +173,11 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 			Div(
 				Class("flex items-center py-1"),
 				Button(
-					Class("flex items-center text-left w-full px-2 py-1 text-gray-900 hover:bg-gray-50 border-l-2 border-transparent hover:border-gray-300"),
+					Class("flex items-center text-left w-full px-2 py-1 text-gray-900 hover:bg-gray-50"),
 					g.Attr("onclick", fmt.Sprintf("toggleFolder('%s')", node.Path)),
 					// Folder icon (chevron)
 					Span(
-						Class("mr-2 transition-transform duration-200"),
+						Class("mr-2 transition-transform duration-200 text-gray-400"),
 						ID("chevron-"+node.Path),
 						g.If(node.IsOpen,
 							g.Text("▼"),
@@ -160,7 +192,7 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 			// Children container
 			g.If(len(node.Children) > 0,
 				Ul(
-					Class("ml-4 space-y-1"),
+					Class("ml-4"),
 					ID("folder-"+node.Path),
 					g.If(node.IsOpen,
 						g.Attr("style", "display: block;"),
@@ -179,9 +211,9 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 		isActive := node.Note != nil && node.Note.Slug == currentSlug
 		var linkClass string
 		if isActive {
-			linkClass = "flex items-center px-2 py-1 text-purple-600 bg-purple-50 border-l-2 border-purple-600 font-medium"
+			linkClass = "flex items-center px-2 py-1 text-purple-600 bg-purple-50 border-l border-purple-600 font-medium"
 		} else {
-			linkClass = "flex items-center px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l-2 border-transparent hover:border-gray-300"
+			linkClass = "flex items-center px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-300 hover:border-gray-800"
 		}
 
 		return Li(
@@ -213,6 +245,99 @@ func (rs Resource) countNotesInTree(node *TreeNode) int {
 	return count
 }
 
+// TOCItem represents a table of contents item
+type TOCItem struct {
+	ID    string
+	Text  string
+	Level int
+}
+
+// slugify converts a string to a URL-friendly slug
+func slugify(text string) string {
+	// Convert to lowercase
+	slug := strings.ToLower(text)
+
+	// Replace spaces and common punctuation with hyphens
+	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "-")
+
+	// Remove leading and trailing hyphens
+	slug = strings.Trim(slug, "-")
+
+	return slug
+}
+
+// extractHeadings extracts headings from markdown content and returns TOC items
+func extractHeadings(content string) []TOCItem {
+	var tocItems []TOCItem
+	usedSlugs := make(map[string]int) // Track used slugs to handle duplicates
+
+	// Regular expression to match markdown headings
+	headingRegex := regexp.MustCompile(`^(#{1,6})\s+(.+)$`)
+
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if matches := headingRegex.FindStringSubmatch(line); matches != nil {
+			level := len(matches[1]) // Number of # characters
+			text := strings.TrimSpace(matches[2])
+
+			// Generate a slug from the heading text
+			baseSlug := slugify(text)
+			id := baseSlug
+
+			// Handle duplicate slugs by appending a number
+			if count, exists := usedSlugs[baseSlug]; exists {
+				usedSlugs[baseSlug] = count + 1
+				id = fmt.Sprintf("%s-%d", baseSlug, count+1)
+			} else {
+				usedSlugs[baseSlug] = 0
+			}
+
+			tocItems = append(tocItems, TOCItem{
+				ID:    id,
+				Text:  text,
+				Level: level,
+			})
+		}
+	}
+
+	return tocItems
+}
+
+// renderTOC renders the table of contents as HTML nodes
+func renderTOC(tocItems []TOCItem) []gomponents.Node {
+	if len(tocItems) == 0 {
+		return []gomponents.Node{
+			P(
+				Class("text-sm text-gray-500 italic"),
+				g.Text("No headings found"),
+			),
+		}
+	}
+
+	var nodes []gomponents.Node
+
+	for _, item := range tocItems {
+		// Calculate indentation based on heading level
+		var indentClass string
+		if item.Level > 2 {
+			indentClass = fmt.Sprintf("ml-%d", (item.Level-2)*3)
+		}
+
+		node := A(
+			Href("#"+item.ID),
+			Class(fmt.Sprintf("block py-1 px-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors %s", indentClass)),
+			g.Attr("onclick", "handleTOCClick(event, this)"),
+			g.Text(item.Text),
+		)
+
+		nodes = append(nodes, node)
+	}
+
+	return nodes
+}
+
 // NoteWithList displays a note with the list of all notes on the left side
 func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponents.Node, error) {
 
@@ -239,6 +364,9 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	// Parse wiki-style links before markdown processing
 	parsedContent := rs.parseWikiLinks(string(content))
 
+	// Extract headings for table of contents
+	tocItems := extractHeadings(parsedContent)
+
 	// Filter tree based on search query
 	var displayTree *TreeNode
 	if searchQuery != "" {
@@ -257,13 +385,13 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	return rs.Layout(
 		Div(
-			Class("flex gap-6 h-screen"),
+			Class("flex gap-2 h-screen"),
 			// Left sidebar with notes list
 			Div(
-				Class("w-1/4 bg-white border-r border-gray-200 p-4 flex flex-col h-full"),
+				Class("w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full"),
 				// Site header with title and icon
 				Div(
-					Class("mb-6 pb-4 border-b border-gray-200"),
+					Class("mb-6"),
 					Div(
 						Class("flex items-center gap-3 mb-2"),
 						// Site icon
@@ -333,12 +461,12 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 				Div(
 					Class("mb-4 flex gap-2"),
 					Button(
-						Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors"),
+						Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
 						g.Attr("onclick", "expandAllFolders()"),
 						g.Text("Expand All"),
 					),
 					Button(
-						Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors"),
+						Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
 						g.Attr("onclick", "collapseAllFolders()"),
 						g.Text("Collapse All"),
 					),
@@ -359,7 +487,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 						Class(""),
 						g.If(displayTree != nil && len(displayTree.Children) > 0,
 							Ul(
-								Class("space-y-1"),
+								Class(""),
 								g.Group(g.Map(displayTree.Children, func(child *TreeNode) gomponents.Node {
 									return rs.renderTreeNode(child, slug)
 								})),
@@ -375,9 +503,9 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 					),
 				),
 			),
-			// Right content area with the note
+			// Main content area with the note
 			Div(
-				Class("flex-1 overflow-y-auto p-4"),
+				Class("flex-1 overflow-y-auto p-4 px-8"),
 				H1(
 					Class("text-3xl font-bold mb-4"),
 					g.If(title != "", g.Text(title)),
@@ -385,7 +513,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 				g.If(len(matter) > 0,
 					Ul(
 						Class("bg-gray-100 p-4 rounded-lg mb-6"),
-						g.Group(MapMap(matter, func(key string, value any) gomponents.Node {
+						g.Group(MapMapSorted(matter, func(key string, value any) gomponents.Node {
 							return Li(
 								g.Text(fmt.Sprintf("%s: %v", key, value)),
 							)
@@ -393,7 +521,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 					),
 				),
 				Div(
-					Class("prose lg:prose-xl max-w-none"),
+					Class("prose max-w-none"),
 					g.Raw(string(markdown.Markdown(parsedContent))),
 				),
 				// Referenced By section
@@ -416,6 +544,26 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 								)
 							})),
 						),
+					),
+				),
+			),
+			// Right sidebar with "On this page" table of contents
+			Div(
+				Class("w-64 bg-white border-l border-gray-200 p-4 flex flex-col h-full"),
+				ID("toc-sidebar"),
+				Div(
+					Class("mb-4"),
+					H3(
+						Class("text-sm font-semibold text-gray-900 uppercase tracking-wide"),
+						g.Text("On this page"),
+					),
+				),
+				Div(
+					Class("flex-1 overflow-y-auto"),
+					Nav(
+						ID("table-of-contents"),
+						Class("space-y-1"),
+						g.Group(renderTOC(tocItems)),
 					),
 				),
 			),

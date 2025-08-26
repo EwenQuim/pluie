@@ -1,2 +1,56 @@
 @import "tailwindcss";
 @plugin '@tailwindcss/typography';
+
+/* Custom styles for the table of contents */
+#toc-sidebar {
+  /* Ensure the sidebar is visible on larger screens */
+  display: flex;
+}
+
+/* Hide TOC sidebar on smaller screens */
+@media (max-width: 1024px) {
+  #toc-sidebar {
+    display: none;
+  }
+
+  /* Adjust main content area when TOC is hidden */
+  .flex.gap-2.h-screen > .flex-1 {
+    margin-right: 0;
+  }
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for TOC */
+#table-of-contents::-webkit-scrollbar {
+  width: 4px;
+}
+
+#table-of-contents::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#table-of-contents::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+#table-of-contents::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Active TOC item styling */
+#table-of-contents a.active {
+  color: #7c3aed;
+  background-color: #f3f4f6;
+  font-weight: 500;
+}
+
+/* Hover effects for TOC items */
+#table-of-contents a:hover {
+  background-color: #f9fafb;
+  color: #374151;
+}

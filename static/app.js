@@ -83,10 +83,127 @@ function restoreFolderStates() {
 	}
 }
 
+// Handle TOC click events for smooth scrolling and active state
+function handleTOCClick(event, tocLink) {
+	event.preventDefault();
+
+	const targetId = tocLink.getAttribute('href').substring(1); // Remove the #
+	const targetElement = document.getElementById(targetId);
+
+	if (targetElement) {
+		// Smooth scroll to target
+		targetElement.scrollIntoView({
+			behavior: 'smooth',
+			block: 'start'
+		});
+
+		// Update URL hash
+		history.pushState(null, null, `#${targetId}`);
+
+		// Update active state
+		updateActiveTocItem(tocLink);
+	}
+}
+
+// Slugify function to match the Go implementation
+function slugify(text) {
+	return text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+}
+
+// Add IDs to headings that match the TOC structure
+function addHeadingIds() {
+	const contentArea = document.querySelector('.prose');
+	if (!contentArea) return;
+
+	const headings = contentArea.querySelectorAll('h1, h2, h3, h4, h5, h6');
+	const usedSlugs = new Map(); // Track used slugs to handle duplicates
+
+	headings.forEach((heading) => {
+		if (!heading.id) {
+			const text = heading.textContent.trim();
+			const baseSlug = slugify(text);
+			let id = baseSlug;
+
+			// Handle duplicate slugs by appending a number
+			if (usedSlugs.has(baseSlug)) {
+				const count = usedSlugs.get(baseSlug) + 1;
+				usedSlugs.set(baseSlug, count);
+				id = `${baseSlug}-${count}`;
+			} else {
+				usedSlugs.set(baseSlug, 0);
+			}
+
+			heading.id = id;
+		}
+	});
+}
+
+// Update active TOC item based on scroll position
+function updateActiveTocItem(activeItem = null) {
+	const tocLinks = document.querySelectorAll('#table-of-contents a');
+
+	// Remove active class from all items
+	tocLinks.forEach(link => {
+		link.classList.remove('text-purple-600', 'bg-purple-50', 'font-medium');
+		link.classList.add('text-gray-600');
+	});
+
+	if (activeItem) {
+		// Set specific item as active
+		activeItem.classList.remove('text-gray-600');
+		activeItem.classList.add('text-purple-600', 'bg-purple-50', 'font-medium');
+	} else {
+		// Find active item based on scroll position
+		const headings = document.querySelectorAll('.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6');
+		let activeHeading = null;
+
+		// Find the heading that's currently in view
+		headings.forEach(heading => {
+			const rect = heading.getBoundingClientRect();
+			if (rect.top <= 100 && rect.top >= -100) {
+				activeHeading = heading;
+			}
+		});
+
+		if (activeHeading) {
+			const activeLink = document.querySelector(`#table-of-contents a[href="#${activeHeading.id}"]`);
+			if (activeLink) {
+				activeLink.classList.remove('text-gray-600');
+				activeLink.classList.add('text-purple-600', 'bg-purple-50', 'font-medium');
+			}
+		}
+	}
+}
+
+// Throttle function for scroll events
+function throttle(func, wait) {
+	let timeout;
+	return function executedFunction(...args) {
+		const later = () => {
+			clearTimeout(timeout);
+			func(...args);
+		};
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+	};
+}
+
 // Keyboard shortcuts
 document.addEventListener('DOMContentLoaded', function () {
 	// Restore folder states when page loads
 	restoreFolderStates();
+
+	// Add IDs to headings to match TOC structure
+	addHeadingIds();
+
+	// Update active TOC item on scroll
+	const mainContent = document.querySelector('.flex-1.overflow-y-auto');
+	if (mainContent) {
+		mainContent.addEventListener('scroll', throttle(updateActiveTocItem, 100));
+	}
 
 	// Handle cmd+K (or ctrl+K on Windows/Linux) to focus search
 	document.addEventListener('keydown', function (event) {
@@ -110,4 +227,41 @@ document.addEventListener('DOMContentLoaded', function () {
 			setTimeout(restoreFolderStates, 10); // Small delay to ensure DOM is updated
 		}
 	});
+
+	// Add heading IDs after HTMX content updates
+	document.body.addEventListener('htmx:afterSwap', function (event) {
+		// Check if the main content was updated
+		if (event.target.closest('.prose') || event.target.classList.contains('prose')) {
+			setTimeout(() => {
+				addHeadingIds();
+				// Handle hash in URL on page load
+				if (window.location.hash) {
+					const targetElement = document.querySelector(window.location.hash);
+					if (targetElement) {
+						setTimeout(() => {
+							targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+							const activeLink = document.querySelector(`#table-of-contents a[href="${window.location.hash}"]`);
+							if (activeLink) {
+								updateActiveTocItem(activeLink);
+							}
+						}, 100);
+					}
+				}
+			}, 50);
+		}
+	});
+
+	// Handle hash in URL on initial page load
+	if (window.location.hash) {
+		setTimeout(() => {
+			const targetElement = document.querySelector(window.location.hash);
+			if (targetElement) {
+				targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				const activeLink = document.querySelector(`#table-of-contents a[href="${window.location.hash}"]`);
+				if (activeLink) {
+					updateActiveTocItem(activeLink);
+				}
+			}
+		}, 100);
+	}
 });
