@@ -67,8 +67,7 @@ func main() {
 		NotesMap: notesMap,
 		Tree:     tree,
 		rs: template.Resource{
-			Notes: publicNotes,
-			Tree:  convertTreeNode(tree),
+			Tree: convertTreeNode(tree),
 		},
 	}.Start()
 	if err != nil {

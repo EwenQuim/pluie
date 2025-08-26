@@ -38,14 +38,15 @@ func (s Server) getHomeNoteSlug() string {
 	}
 
 	// Priority 3: First note in alphabetical order
-	if len(s.rs.Notes) > 0 {
-		// Create a copy of notes and sort by slug
-		notes := make([]model.Note, len(s.rs.Notes))
-		copy(notes, s.rs.Notes)
-		sort.Slice(notes, func(i, j int) bool {
-			return notes[i].Slug < notes[j].Slug
-		})
-		return notes[0].Slug
+	if s.Tree != nil {
+		// Get all notes from tree and sort by slug
+		notes := GetAllNotesFromTree(s.Tree)
+		if len(notes) > 0 {
+			sort.Slice(notes, func(i, j int) bool {
+				return notes[i].Slug < notes[j].Slug
+			})
+			return notes[0].Slug
+		}
 	}
 
 	// Fallback (should not happen if there are notes)

@@ -2,21 +2,62 @@ package template
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/EwenQuim/pluie/model"
 )
 
+// buildTestTree creates a tree structure from a list of notes for testing
+func buildTestTree(notes []model.Note) *TreeNode {
+	root := &TreeNode{
+		Name:     "Notes",
+		Path:     "",
+		IsFolder: true,
+		Children: make([]*TreeNode, 0),
+		IsOpen:   true,
+	}
+
+	// Sort notes by slug for consistent ordering
+	sortedNotes := make([]model.Note, len(notes))
+	copy(sortedNotes, notes)
+	sort.Slice(sortedNotes, func(i, j int) bool {
+		return sortedNotes[i].Slug < sortedNotes[j].Slug
+	})
+
+	for _, note := range sortedNotes {
+		// Create a copy of the note for the pointer
+		noteCopy := note
+		// For simplicity in tests, put all notes at root level
+		noteNode := &TreeNode{
+			Name:     note.Title,
+			Path:     note.Slug,
+			IsFolder: false,
+			Note:     &noteCopy,
+			Children: make([]*TreeNode, 0),
+		}
+		root.Children = append(root.Children, noteNode)
+	}
+
+	return root
+}
+
 func TestParseWikiLinks(t *testing.T) {
-	// Create a Resource with sample notes for testing
+	// Create sample notes for testing
+	notes := []model.Note{
+		{Title: "Test Note", Slug: "test-note"},
+		{Title: "Another Note", Slug: "another-note"},
+		{Title: "Special Characters & Symbols", Slug: "special-characters-symbols"},
+		{Title: "articles/Hello World", Slug: "articles/hello-world"},
+	}
+
+	// Build tree from notes
+	tree := buildTestTree(notes)
+
+	// Create a Resource with the tree
 	rs := Resource{
-		Notes: []model.Note{
-			{Title: "Test Note", Slug: "test-note"},
-			{Title: "Another Note", Slug: "another-note"},
-			{Title: "Special Characters & Symbols", Slug: "special-characters-symbols"},
-			{Title: "articles/Hello World", Slug: "articles/hello-world"},
-		},
+		Tree: tree,
 	}
 
 	tests := []struct {
@@ -173,9 +214,15 @@ func TestParseWikiLinks(t *testing.T) {
 }
 
 func TestParseWikiLinksWithEmptyNotes(t *testing.T) {
-	// Test with empty notes slice
+	// Test with empty tree
 	rs := Resource{
-		Notes: []model.Note{},
+		Tree: &TreeNode{
+			Name:     "Notes",
+			Path:     "",
+			IsFolder: true,
+			Children: []*TreeNode{},
+			IsOpen:   true,
+		},
 	}
 
 	input := "This [[Test Note]] should not be found."
@@ -197,7 +244,10 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 		}
 	}
 
-	rs := Resource{Notes: notes}
+	// Build tree from notes
+	tree := buildTestTree(notes)
+
+	rs := Resource{Tree: tree}
 
 	// Create content with multiple wiki links
 	content := "Start "
@@ -216,12 +266,15 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 }
 
 func BenchmarkParseWikiLinks(b *testing.B) {
-	rs := Resource{
-		Notes: []model.Note{
-			{Title: "Test Note", Slug: "test-note"},
-			{Title: "Another Note", Slug: "another-note"},
-		},
+	notes := []model.Note{
+		{Title: "Test Note", Slug: "test-note"},
+		{Title: "Another Note", Slug: "another-note"},
 	}
+
+	// Build tree from notes
+	tree := buildTestTree(notes)
+
+	rs := Resource{Tree: tree}
 
 	content := "This is a [[Test Note]] with [[Another Note]] and some [[Missing Link]] content."
 

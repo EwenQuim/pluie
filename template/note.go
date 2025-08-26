@@ -15,8 +15,7 @@ import (
 )
 
 type Resource struct {
-	Notes []model.Note
-	Tree  *TreeNode
+	Tree *TreeNode
 }
 
 // TreeNode represents a node in the file tree structure (imported from main package)
@@ -27,6 +26,23 @@ type TreeNode struct {
 	Note     *model.Note `json:"note"`     // Reference to the note if this is a note node
 	Children []*TreeNode `json:"children"` // Child nodes (subfolders and notes)
 	IsOpen   bool        `json:"isOpen"`   // Whether the folder is expanded in the UI
+}
+
+// AllNotes yields all notes in the tree using Go 1.23 iterator pattern
+func (t *TreeNode) AllNotes(yield func(*TreeNode) bool) {
+	if t == nil {
+		return
+	}
+
+	if !t.IsFolder && t.Note != nil {
+		if !yield(t) {
+			return
+		}
+	}
+
+	for _, child := range t.Children {
+		child.AllNotes(yield)
+	}
 }
 
 // MapMap creates nodes from a map

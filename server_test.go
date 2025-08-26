@@ -34,8 +34,7 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 		NotesMap: publicNotesMap,
 		Tree:     tree,
 		rs: template.Resource{
-			Notes: publicNotes,
-			Tree:  convertTreeNode(tree),
+			Tree: convertTreeNode(tree),
 		},
 	}
 
@@ -167,10 +166,12 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tree := BuildTree(tt.notes)
 			server := Server{
 				NotesMap: tt.notesMap,
+				Tree:     tree,
 				rs: template.Resource{
-					Notes: tt.notes,
+					Tree: convertTreeNode(tree),
 				},
 			}
 

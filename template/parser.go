@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/EwenQuim/pluie/model"
 )
 
 // parseWikiLinks transforms [[linktitle]] and [[linktitle|displayname]] into [title](link) format
@@ -43,12 +45,19 @@ func (rs Resource) parseWikiLinks(content string) string {
 			displayName = innerContent
 		}
 
-		// Find the corresponding note by title
-		for _, note := range rs.Notes {
-			if note.Title == pageTitle {
-				// Return markdown link format [displayName](link)
-				return fmt.Sprintf("[%s](/%s)", displayName, note.Slug)
+		// Find the corresponding note by title in the tree using iterator
+		var foundNote *model.Note
+		rs.Tree.AllNotes(func(noteNode *TreeNode) bool {
+			if noteNode.Note != nil && noteNode.Note.Title == pageTitle {
+				foundNote = noteNode.Note
+				return false // Stop iteration
 			}
+			return true // Continue iteration
+		})
+
+		if foundNote != nil {
+			// Return markdown link format [displayName](link)
+			return fmt.Sprintf("[%s](/%s)", displayName, foundNote.Slug)
 		}
 
 		// If no matching note found, return the display name without brackets
