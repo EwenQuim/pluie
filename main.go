@@ -41,10 +41,17 @@ func main() {
 		notesMap[note.Slug] = note
 	}
 
+	// Build tree structure
+	fmt.Print("Building tree structure... ")
+	tree := BuildTree(notes)
+	fmt.Println("done")
+
 	err = Server{
 		NotesMap: notesMap,
+		Tree:     tree,
 		rs: template.Resource{
 			Notes: notes,
+			Tree:  convertTreeNode(tree),
 		},
 	}.Start()
 	if err != nil {
@@ -102,4 +109,26 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 	fmt.Println(len(notes), "notes found")
 
 	return notes, nil
+}
+
+// convertTreeNode converts main.TreeNode to template.TreeNode
+func convertTreeNode(node *TreeNode) *template.TreeNode {
+	if node == nil {
+		return nil
+	}
+
+	templateNode := &template.TreeNode{
+		Name:     node.Name,
+		Path:     node.Path,
+		IsFolder: node.IsFolder,
+		Note:     node.Note,
+		IsOpen:   node.IsOpen,
+		Children: make([]*template.TreeNode, len(node.Children)),
+	}
+
+	for i, child := range node.Children {
+		templateNode.Children[i] = convertTreeNode(child)
+	}
+
+	return templateNode
 }

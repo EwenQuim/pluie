@@ -16,6 +16,7 @@ import (
 
 type Server struct {
 	NotesMap map[string]model.Note // Slug -> Note
+	Tree     *TreeNode             // Tree structure of notes
 	rs       template.Resource
 }
 
