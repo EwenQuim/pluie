@@ -5,10 +5,16 @@ import (
 	"strings"
 )
 
+type NoteReference struct {
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+}
+
 type Note struct {
-	Title   string `json:"title"` // May contains spaces and slashes, like "articles/Hello World"
-	Slug    string `json:"slug"`  // Slugified title, like "articles/hello-world"
-	Content string `json:"content"`
+	Title        string          `json:"title"` // May contains spaces and slashes, like "articles/Hello World"
+	Slug         string          `json:"slug"`  // Slugified title, like "articles/hello-world"
+	Content      string          `json:"content"`
+	ReferencedBy []NoteReference `json:"referenced_by"` // Notes that have wikilinks to this note
 }
 
 // If Slug is not defined, build it from the title

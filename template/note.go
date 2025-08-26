@@ -157,6 +157,28 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 					Class("prose lg:prose-xl max-w-none"),
 					g.Raw(string(markdown.Markdown(parsedContent))),
 				),
+				// Referenced By section
+				g.If(note != nil && len(note.ReferencedBy) > 0,
+					Div(
+						Class("mt-8 pt-6 border-t border-gray-200"),
+						H3(
+							Class("text-lg font-semibold mb-3 text-gray-700"),
+							g.Text("Referenced by"),
+						),
+						Ul(
+							Class("space-y-2"),
+							g.Group(g.Map(note.ReferencedBy, func(ref model.NoteReference) gomponents.Node {
+								return Li(
+									A(
+										Href("/"+ref.Slug),
+										Class("text-blue-600 hover:text-blue-800 hover:underline"),
+										g.Text(ref.Title),
+									),
+								)
+							})),
+						),
+					),
+				),
 			),
 		),
 	), nil

@@ -26,6 +26,11 @@ func main() {
 		return
 	}
 
+	// Build backreferences for all notes
+	fmt.Print("Building backreferences... ")
+	notes = template.BuildBackreferences(notes)
+	fmt.Println("done")
+
 	urls := make([]string, 0, len(notes))
 	for _, note := range notes {
 		urls = append(urls, strings.TrimSuffix(note.Slug, ".md"))
