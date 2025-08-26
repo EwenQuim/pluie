@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/EwenQuim/pluie/model"
-	"github.com/adrg/frontmatter"
 	"github.com/maragudk/gomponents"
 	g "github.com/maragudk/gomponents"
 	. "github.com/maragudk/gomponents/html"
@@ -173,11 +172,11 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 			Div(
 				Class("flex items-center py-1"),
 				Button(
-					Class("flex items-center text-left w-full px-2 py-1 text-gray-900 hover:bg-gray-50"),
+					Class("flex items-center text-left w-full px-2 py-1 text-gray-900 hover:text-black hover:bg-gray-50"),
 					g.Attr("onclick", fmt.Sprintf("toggleFolder('%s')", node.Path)),
 					// Folder icon (chevron)
 					Span(
-						Class("mr-2 transition-transform duration-200 text-gray-400"),
+						Class("mr-2 transition-transform duration-200 text-gray-400 text-xs"),
 						ID("chevron-"+node.Path),
 						g.If(node.IsOpen,
 							g.Text("▼"),
@@ -186,7 +185,7 @@ func (rs Resource) renderTreeNode(node *TreeNode, currentSlug string) gomponents
 							g.Text("▶"),
 						),
 					),
-					g.Text(node.Name),
+					Span(g.Text(node.Name)),
 				),
 			),
 			// Children container
@@ -348,17 +347,14 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	var referencedBy []model.NoteReference
 
 	if note != nil {
-		var err error
-		content, err = frontmatter.Parse(strings.NewReader(note.Content), &matter)
-		if err != nil {
-			content = []byte(note.Content)
-			fmt.Println("Error parsing frontmatter:", err)
-		}
+		matter = note.Metadata
 		slug = note.Slug
 		title = note.Title
 		referencedBy = note.ReferencedBy
+		content = []byte(note.Content)
 	} else {
-		content = []byte("Note is nil")
+		title = "404 : Not found"
+		content = []byte("This note does not exist or is private.")
 	}
 
 	// Parse wiki-style links before markdown processing
@@ -399,7 +395,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 							Img(
 								Src(siteIcon),
 								Alt("Site Icon"),
-								Class("w-8 h-8 object-contain"),
+								Class("w-8 h-8 object-contain rounded-md"),
 							),
 						),
 						// Site title

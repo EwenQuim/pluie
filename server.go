@@ -79,6 +79,12 @@ func (s Server) Start() error {
 			return s.rs.NoteWithList(nil, searchQuery)
 		}
 
+		// Additional security check: ensure note is public
+		if !note.IsPublic {
+			slog.Info("Private note access denied", "slug", slug)
+			return s.rs.NoteWithList(nil, searchQuery)
+		}
+
 		return s.rs.NoteWithList(&note, searchQuery)
 	},
 		option.Query("search", "Search query to filter notes by title"),
