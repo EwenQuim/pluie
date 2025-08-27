@@ -10,7 +10,7 @@ services:
     volumes:
       - ./vault:/vault # Left is host (you can set you own vault path), right is container (do not change)
     environment:
-      HOME_NOTE_SLUG: ACCUEIL # Default is "HOME"
+      HOME_NOTE_SLUG: ACCUEIL # Default is "Index"
       SITE_TITLE: Pluie # Default "Pluie"
       SITE_DESCRIPTION: My personal knowledge base # Default empty
       SITE_ICON: https://avatars.githubusercontent.com/u/46993939?v=4 # Default empty (no icon)

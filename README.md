@@ -102,7 +102,7 @@ Pluie is a lightning-fast, privacy-focused markdown wiki server built in Go that
    git clone https://github.com/EwenQuim/pluie.git
    cd pluie
    mkdir vault
-   echo "# Welcome to Pluie" > vault/HOME.md
+   echo "# Welcome to Pluie" > vault/Index.md
    ```
 
 2. **Start the server**:
@@ -133,7 +133,7 @@ go run . -path ./vault
 ```
 pluie/
 ├── vault/                  # Your markdown notes
-│   ├── HOME.md            # Default home page
+│   ├── Index.md            # Default home page
 │   ├── projects/          # Organized in folders
 │   │   ├── .pluie         # Folder privacy settings
 │   │   └── project1.md
@@ -157,7 +157,7 @@ SITE_DESCRIPTION="Personal notes and documentation"
 
 # Privacy settings
 PUBLIC_BY_DEFAULT=false        # Default: false (notes are private)
-HOME_NOTE_SLUG=HOME           # Default home page
+HOME_NOTE_SLUG=Index           # Default home page
 
 # Server settings
 PORT=9999                     # Default: 9999

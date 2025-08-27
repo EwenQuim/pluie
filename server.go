@@ -24,8 +24,7 @@ type Server struct {
 
 // getHomeNoteSlug determines the home note slug based on priority:
 // 1. HOME_NOTE_SLUG config value
-// 2. HOME.md note if it exists
-// 3. First note in alphabetical order
+// 2. First note in alphabetical order
 func (s Server) getHomeNoteSlug() string {
 	// Priority 1: Check HOME_NOTE_SLUG configuration
 	if s.cfg.HomeNoteSlug != "" {
@@ -34,12 +33,7 @@ func (s Server) getHomeNoteSlug() string {
 		}
 	}
 
-	// Priority 2: Check for HOME note
-	if _, exists := s.NotesMap["HOME"]; exists {
-		return "HOME"
-	}
-
-	// Priority 3: First note in alphabetical order
+	// Priority 2: First note in alphabetical order
 	if s.Tree != nil {
 		// Get all notes from tree and sort by slug
 		notes := engine.GetAllNotesFromTree(s.Tree)
