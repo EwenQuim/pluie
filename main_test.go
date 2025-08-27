@@ -42,8 +42,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			explorer := Explorer{
-				BasePath:        "testdata",
-				PublicByDefault: tt.publicByDefault,
+				BasePath: "testdata",
 			}
 
 			notes, err := explorer.getFolderNotes("")
@@ -86,8 +85,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 
 func TestNoteMetadataParsing(t *testing.T) {
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: false,
+		BasePath: "testdata",
 	}
 
 	notes, err := explorer.getFolderNotes("")
@@ -124,8 +122,7 @@ func TestNoteMetadataParsing(t *testing.T) {
 
 func TestFrontmatterTitleOverride(t *testing.T) {
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: false,
+		BasePath: "testdata",
 	}
 
 	notes, err := explorer.getFolderNotes("")
@@ -179,8 +176,7 @@ func TestFrontmatterTitleOverride(t *testing.T) {
 
 func TestFolderMetadataInheritance(t *testing.T) {
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: false,
+		BasePath: "testdata",
 	}
 
 	notes, err := explorer.getFolderNotes("")
@@ -229,8 +225,7 @@ func TestPublicByDefaultEnvironmentVariable(t *testing.T) {
 	defer os.Unsetenv("PUBLIC_BY_DEFAULT")
 
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: true, // This should be set based on env var in main()
+		BasePath: "testdata",
 	}
 
 	notes, err := explorer.getFolderNotes("")
@@ -258,8 +253,7 @@ func TestPublicByDefaultEnvironmentVariable(t *testing.T) {
 
 func TestNoteFiltering(t *testing.T) {
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: false,
+		BasePath: "testdata",
 	}
 
 	allNotes, err := explorer.getFolderNotes("")

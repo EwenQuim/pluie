@@ -3,9 +3,9 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	"os"
 	"sort"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/static"
@@ -19,17 +19,18 @@ type Server struct {
 	NotesMap map[string]model.Note // Slug -> Note
 	Tree     *engine.TreeNode      // Tree structure of notes
 	rs       template.Resource
+	cfg      *config.Config
 }
 
 // getHomeNoteSlug determines the home note slug based on priority:
-// 1. HOME_NOTE_SLUG env variable
+// 1. HOME_NOTE_SLUG config value
 // 2. HOME.md note if it exists
 // 3. First note in alphabetical order
 func (s Server) getHomeNoteSlug() string {
-	// Priority 1: Check HOME_NOTE_SLUG environment variable
-	if homeSlug := os.Getenv("HOME_NOTE_SLUG"); homeSlug != "" {
-		if _, exists := s.NotesMap[homeSlug]; exists {
-			return homeSlug
+	// Priority 1: Check HOME_NOTE_SLUG configuration
+	if s.cfg.HomeNoteSlug != "" {
+		if _, exists := s.NotesMap[s.cfg.HomeNoteSlug]; exists {
+			return s.cfg.HomeNoteSlug
 		}
 	}
 
@@ -55,12 +56,8 @@ func (s Server) getHomeNoteSlug() string {
 }
 
 func (s Server) Start() error {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "9999"
-	}
 	server := fuego.NewServer(
-		fuego.WithAddr(":"+port),
+		fuego.WithAddr(":"+s.cfg.Port),
 		fuego.WithEngineOptions(
 			fuego.WithOpenAPIConfig(fuego.OpenAPIConfig{
 				DisableLocalSave: true,
@@ -86,7 +83,7 @@ func (s Server) Start() error {
 		}
 
 		// Additional security check: ensure note is public
-		if os.Getenv("PUBLIC_BY_DEFAULT") != "true" && !note.IsPublic {
+		if !s.cfg.PublicByDefault && !note.IsPublic {
 			slog.Info("Private note access denied", "slug", slug)
 			return s.rs.NoteWithList(nil, searchQuery)
 		}

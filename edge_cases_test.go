@@ -11,8 +11,7 @@ func TestEdgeCases(t *testing.T) {
 	t.Run("InvalidYAMLFrontmatter", func(t *testing.T) {
 		// Test that invalid YAML doesn't crash the system
 		explorer := Explorer{
-			BasePath:        "testdata",
-			PublicByDefault: false,
+			BasePath: "testdata",
 		}
 
 		// This should not crash even if there are YAML parsing errors
@@ -216,8 +215,7 @@ func TestEdgeCases(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	// Test that the system handles concurrent access gracefully
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: false,
+		BasePath: "testdata",
 	}
 
 	// Run multiple goroutines accessing the same functionality
@@ -261,8 +259,7 @@ func TestConcurrentAccess(t *testing.T) {
 func TestMemoryUsage(t *testing.T) {
 	// Test that the system doesn't leak memory with large numbers of notes
 	explorer := Explorer{
-		BasePath:        "testdata",
-		PublicByDefault: false,
+		BasePath: "testdata",
 	}
 
 	// Run the operation multiple times to check for memory leaks

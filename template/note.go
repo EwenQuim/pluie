@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/EwenQuim/pluie/engine"
@@ -37,7 +38,7 @@ func MapMapSorted[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Nod
 	}
 
 	// Sort keys alphabetically (case-insensitive)
-	sortKeys(keys)
+	sortKeysCaseInsensitive(keys)
 
 	// Create nodes in sorted order
 	var nodes []g.Node
@@ -47,16 +48,20 @@ func MapMapSorted[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Nod
 	return nodes
 }
 
-// sortKeys sorts a slice of strings alphabetically (case-insensitive)
-func sortKeys(keys []string) {
-	for i := 0; i < len(keys)-1; i++ {
-		for j := i + 1; j < len(keys); j++ {
-			if strings.ToLower(keys[i]) > strings.ToLower(keys[j]) {
-				keys[i], keys[j] = keys[j], keys[i]
-			}
-		}
-	}
+// sortKeysCaseInsensitive sorts a slice of strings alphabetically (case-insensitive)
+func sortKeysCaseInsensitive(keys []string) {
+	slices.SortFunc(keys, func(a, b string) int {
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+	})
 }
+
+// CSS class constants for consistent styling
+const (
+	folderButtonClass = "flex items-center text-left w-full px-2 py-1 text-gray-900 hover:text-black hover:bg-gray-50"
+	chevronClass      = "mr-2 transition-transform duration-200 text-gray-400 text-xs"
+	activeLinkClass   = "flex items-center px-2 py-1 text-purple-600 bg-purple-50 border-l border-purple-600 font-medium"
+	inactiveLinkClass = "flex items-center px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-300 hover:border-gray-800"
+)
 
 // renderTreeNode renders a single tree node with its children
 func (rs Resource) renderTreeNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
@@ -65,64 +70,75 @@ func (rs Resource) renderTreeNode(node *engine.TreeNode, currentSlug string) gom
 	}
 
 	if node.IsFolder {
-		// Render folder
-		return Li(
-			Class(""),
-			Div(
-				Class("flex items-center py-1"),
-				Button(
-					Class("flex items-center text-left w-full px-2 py-1 text-gray-900 hover:text-black hover:bg-gray-50"),
-					g.Attr("onclick", fmt.Sprintf("toggleFolder('%s')", node.Path)),
-					// Folder icon (chevron)
-					Span(
-						Class("mr-2 transition-transform duration-200 text-gray-400 text-xs"),
-						ID("chevron-"+node.Path),
-						g.If(node.IsOpen,
-							g.Text("▼"),
-						),
-						g.If(!node.IsOpen,
-							g.Text("▶"),
-						),
-					),
-					Span(g.Text(node.Name)),
-				),
-			),
-			// Children container
-			g.If(len(node.Children) > 0,
-				Ul(
-					Class("ml-4"),
-					ID("folder-"+node.Path),
-					g.If(node.IsOpen,
-						g.Attr("style", "display: block;"),
-					),
-					g.If(!node.IsOpen,
-						g.Attr("style", "display: none;"),
-					),
-					g.Group(g.Map(node.Children, func(child *engine.TreeNode) gomponents.Node {
-						return rs.renderTreeNode(child, currentSlug)
-					})),
-				),
-			),
-		)
-	} else {
-		// Render note
-		isActive := node.Note != nil && node.Note.Slug == currentSlug
-		var linkClass string
-		if isActive {
-			linkClass = "flex items-center px-2 py-1 text-purple-600 bg-purple-50 border-l border-purple-600 font-medium"
-		} else {
-			linkClass = "flex items-center px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-300 hover:border-gray-800"
-		}
-
-		return Li(
-			A(
-				Href("/"+node.Path),
-				Class(linkClass),
-				g.Attr("hx-boost", "true"),
-				g.Text(node.Name),
-			),
-		)
+		return rs.renderFolderNode(node, currentSlug)
 	}
+	return rs.renderNoteNode(node, currentSlug)
+}
+
+// renderFolderNode renders a folder tree node
+func (rs Resource) renderFolderNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
+	return Li(
+		Class(""),
+		Div(
+			Class("flex items-center py-1"),
+			Button(
+				Class(folderButtonClass),
+				g.Attr("onclick", fmt.Sprintf("toggleFolder('%s')", node.Path)),
+				rs.renderChevronIcon(node),
+				Span(g.Text(node.Name)),
+			),
+		),
+		rs.renderFolderChildren(node, currentSlug),
+	)
+}
+
+// renderNoteNode renders a note tree node
+func (rs Resource) renderNoteNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
+	isActive := node.Note != nil && node.Note.Slug == currentSlug
+	linkClass := inactiveLinkClass
+	if isActive {
+		linkClass = activeLinkClass
+	}
+
+	return Li(
+		A(
+			Href("/"+node.Path),
+			Class(linkClass),
+			g.Attr("hx-boost", "true"),
+			g.Text(node.Name),
+		),
+	)
+}
+
+// renderChevronIcon renders the folder chevron icon
+func (rs Resource) renderChevronIcon(node *engine.TreeNode) gomponents.Node {
+	return Span(
+		Class(chevronClass),
+		ID("chevron-"+node.Path),
+		g.If(node.IsOpen, g.Text("▼")),
+		g.If(!node.IsOpen, g.Text("▶")),
+	)
+}
+
+// renderFolderChildren renders the children container for a folder
+func (rs Resource) renderFolderChildren(node *engine.TreeNode, currentSlug string) gomponents.Node {
+	if len(node.Children) == 0 {
+		return g.Text("")
+	}
+
+	displayStyle := "display: none;"
+	if node.IsOpen {
+		displayStyle = "display: block;"
+	}
+
+	return Ul(
+		Class("ml-4"),
+		ID("folder-"+node.Path),
+		g.Attr("style", displayStyle),
+		g.Group(g.Map(node.Children, func(child *engine.TreeNode) gomponents.Node {
+			return rs.renderTreeNode(child, currentSlug)
+		})),
+	)
 }
 
 // TOCItem represents a table of contents item

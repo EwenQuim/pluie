@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/template"
@@ -19,18 +19,11 @@ func main() {
 
 	flag.Parse()
 
-	// Get PUBLIC_BY_DEFAULT environment variable
-	publicByDefault := false
-	if envValue := os.Getenv("PUBLIC_BY_DEFAULT"); envValue != "" {
-		if parsed, err := strconv.ParseBool(envValue); err == nil {
-			publicByDefault = parsed
-			fmt.Println("PUBLIC_BY_DEFAULT set to", publicByDefault)
-		}
-	}
+	// Load configuration
+	cfg := config.Load()
 
 	explorer := Explorer{
-		BasePath:        *path,
-		PublicByDefault: publicByDefault,
+		BasePath: *path,
 	}
 
 	notes, err := explorer.getFolderNotes("")
@@ -41,16 +34,7 @@ func main() {
 
 	// Filter out private notes
 	fmt.Print("Filtering private notes... ")
-	publicNotes := make([]model.Note, 0)
-	if publicByDefault {
-		publicNotes = notes
-	} else {
-		for _, note := range notes {
-			if note.IsPublic {
-				publicNotes = append(publicNotes, note)
-			}
-		}
-	}
+	publicNotes := filterPublicNotes(notes, cfg.PublicByDefault)
 	fmt.Printf("%d public notes out of %d total\n", len(publicNotes), len(notes))
 
 	// Build backreferences for public notes only
@@ -74,6 +58,7 @@ func main() {
 		rs: template.Resource{
 			Tree: tree,
 		},
+		cfg: cfg,
 	}.Start()
 	if err != nil {
 		panic(err)
@@ -82,101 +67,142 @@ func main() {
 }
 
 type Explorer struct {
-	BasePath        string
-	PublicByDefault bool
+	BasePath string
 }
 
 func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
-	if strings.HasPrefix(currentPath, "/.") || strings.Contains(currentPath, "node_modules") || strings.Contains(currentPath, ".git") {
+	if e.shouldSkipPath(currentPath) {
 		return nil, nil
 	}
 
-	fmt.Print("Searching ", currentPath, "... ")
 	dir, err := os.ReadDir(e.BasePath + "/" + currentPath)
 	if err != nil {
 		return nil, err
 	}
 
-	notes := make([]model.Note, 0)
+	folderMetadata := e.collectFolderMetadata(dir, currentPath)
+	notes := e.processDirectoryEntries(dir, currentPath, folderMetadata)
+
+	fmt.Println(len(notes), "notes found in", currentPath)
+	return notes, nil
+}
+
+// shouldSkipPath determines if a path should be skipped during exploration
+func (e Explorer) shouldSkipPath(currentPath string) bool {
+	return strings.HasPrefix(currentPath, "/.") ||
+		strings.Contains(currentPath, "node_modules") ||
+		strings.Contains(currentPath, ".git")
+}
+
+// collectFolderMetadata collects metadata from .pluie files in the directory
+func (e Explorer) collectFolderMetadata(dir []os.DirEntry, currentPath string) map[string]map[string]any {
 	folderMetadata := make(map[string]map[string]any)
 
-	// First pass: collect folder metadata from .pluie files
 	for _, entry := range dir {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".pluie") {
-			metadataBytes, err := os.ReadFile(path.Join(e.BasePath, currentPath, entry.Name()))
-			if err != nil {
-				continue // Skip if can't read metadata file
+			if metadata := e.parsePluieFile(currentPath, entry.Name()); metadata != nil {
+				folderPath := strings.Trim(currentPath, "/")
+				folderMetadata[folderPath] = metadata
 			}
-
-			var metadata map[string]any
-			_, err = frontmatter.Parse(strings.NewReader(string(metadataBytes)), &metadata)
-			if err != nil {
-				continue // Skip if can't parse metadata
-			}
-
-			// Store metadata for the current folder
-			folderPath := strings.Trim(currentPath, "/")
-			folderMetadata[folderPath] = metadata
 		}
 	}
 
-	// Second pass: process files and folders
+	return folderMetadata
+}
+
+// parsePluieFile parses a .pluie metadata file
+func (e Explorer) parsePluieFile(currentPath, fileName string) map[string]any {
+	metadataBytes, err := os.ReadFile(path.Join(e.BasePath, currentPath, fileName))
+	if err != nil {
+		return nil
+	}
+
+	var metadata map[string]any
+	_, err = frontmatter.Parse(strings.NewReader(string(metadataBytes)), &metadata)
+	if err != nil {
+		return nil
+	}
+
+	return metadata
+}
+
+// processDirectoryEntries processes all entries in a directory
+func (e Explorer) processDirectoryEntries(dir []os.DirEntry, currentPath string, folderMetadata map[string]map[string]any) []model.Note {
+	var notes []model.Note
+
 	for _, entry := range dir {
 		if entry.IsDir() {
-			// Recursively get notes from subfolder
 			subfolderNotes, err := e.getFolderNotes(currentPath + "/" + entry.Name())
 			if err != nil {
-				return nil, err
+				continue // Skip folders with errors
 			}
-
 			notes = append(notes, subfolderNotes...)
-		} else {
-			name := entry.Name()
-			if !strings.HasSuffix(name, ".md") {
-				continue
+		} else if strings.HasSuffix(entry.Name(), ".md") {
+			if note := e.processMarkdownFile(currentPath, entry.Name(), folderMetadata); note != nil {
+				notes = append(notes, *note)
 			}
-
-			contentBytes, err := os.ReadFile(path.Join(e.BasePath, currentPath, name))
-			if err != nil {
-				return nil, err
-			}
-
-			// Parse frontmatter
-			var metadata map[string]any
-			parsedContent, err := frontmatter.Parse(strings.NewReader(string(contentBytes)), &metadata)
-			var finalContent string
-			if err != nil {
-				// If frontmatter parsing fails, use the original content
-				finalContent = string(contentBytes)
-				metadata = make(map[string]any)
-			} else {
-				finalContent = string(parsedContent)
-			}
-
-			// Set title from frontmatter if available, otherwise use filename
-			title := strings.TrimSuffix(name, ".md")
-			if frontmatterTitle, exists := metadata["title"]; exists {
-				if titleStr, ok := frontmatterTitle.(string); ok && titleStr != "" {
-					title = titleStr
-				}
-			}
-
-			note := model.Note{
-				Title:    title,
-				Content:  finalContent,
-				Slug:     path.Join(currentPath, name),
-				Path:     path.Join(currentPath, name),
-				Metadata: metadata,
-			}
-			note.BuildSlug()
-
-			// Determine if the note is public based on hierarchy
-			note.DetermineIsPublic(folderMetadata)
-
-			notes = append(notes, note)
 		}
 	}
-	fmt.Println(len(notes), "notes found")
 
-	return notes, nil
+	return notes
+}
+
+// processMarkdownFile processes a single markdown file
+func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetadata map[string]map[string]any) *model.Note {
+	contentBytes, err := os.ReadFile(path.Join(e.BasePath, currentPath, fileName))
+	if err != nil {
+		return nil
+	}
+
+	// Parse frontmatter
+	var metadata map[string]any
+	parsedContent, err := frontmatter.Parse(strings.NewReader(string(contentBytes)), &metadata)
+	var finalContent string
+	if err != nil {
+		finalContent = string(contentBytes)
+		metadata = make(map[string]any)
+	} else {
+		finalContent = string(parsedContent)
+	}
+
+	// Extract title from frontmatter or filename
+	title := e.extractTitle(fileName, metadata)
+
+	note := model.Note{
+		Title:    title,
+		Content:  finalContent,
+		Slug:     path.Join(currentPath, fileName),
+		Path:     path.Join(currentPath, fileName),
+		Metadata: metadata,
+	}
+	note.BuildSlug()
+	note.DetermineIsPublic(folderMetadata)
+
+	return &note
+}
+
+// extractTitle extracts the title from frontmatter or falls back to filename
+func (e Explorer) extractTitle(fileName string, metadata map[string]any) string {
+	title := strings.TrimSuffix(fileName, ".md")
+	if frontmatterTitle, exists := metadata["title"]; exists {
+		if titleStr, ok := frontmatterTitle.(string); ok && titleStr != "" {
+			title = titleStr
+		}
+	}
+	return title
+}
+
+// filterPublicNotes filters notes based on public/private visibility
+func filterPublicNotes(notes []model.Note, publicByDefault bool) []model.Note {
+	if publicByDefault {
+		return notes
+	}
+
+	publicNotes := make([]model.Note, 0, len(notes))
+	for _, note := range notes {
+		if note.IsPublic {
+			publicNotes = append(publicNotes, note)
+		}
+	}
+	return publicNotes
 }

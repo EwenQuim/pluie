@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/template"
@@ -36,6 +37,10 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 		Tree:     tree,
 		rs: template.Resource{
 			Tree: tree,
+		},
+		cfg: &config.Config{
+			PublicByDefault: false,
+			HomeNoteSlug:    "",
 		},
 	}
 
@@ -173,6 +178,10 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 				Tree:     tree,
 				rs: template.Resource{
 					Tree: tree,
+				},
+				cfg: &config.Config{
+					PublicByDefault: false,
+					HomeNoteSlug:    tt.homeNoteSlug,
 				},
 			}
 

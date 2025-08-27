@@ -21,9 +21,7 @@ type Note struct {
 }
 
 // If Slug is not defined, build it from the title
-// Replace spaces with dashes
-// Replace multiple dashes with a single dash
-// Remove leading and trailing dashes
+// Replace spaces with dashes and clean up multiple dashes
 func (n *Note) BuildSlug() {
 	n.Slug = strings.TrimSuffix(n.Slug, ".md")
 
@@ -31,16 +29,37 @@ func (n *Note) BuildSlug() {
 		n.Slug = n.Title
 	}
 
+	// Replace spaces with dashes and clean up multiple dashes in one pass
 	n.Slug = strings.ReplaceAll(n.Slug, " ", "-")
-	for strings.Contains(n.Slug, "--") {
-		n.Slug = strings.ReplaceAll(n.Slug, "--", "-")
-	}
+	n.Slug = cleanMultipleDashes(n.Slug)
 
-	n.Slug = strings.Trim(n.Slug, "/")
-	n.Slug = strings.Trim(n.Slug, "-")
+	// Clean leading/trailing slashes and dashes
+	n.Slug = strings.Trim(n.Slug, "/-")
 
+	// URL encode while preserving forward slashes
 	n.Slug = url.PathEscape(n.Slug)
 	n.Slug = strings.ReplaceAll(n.Slug, "%2F", "/")
+}
+
+// cleanMultipleDashes removes consecutive dashes using a single pass
+func cleanMultipleDashes(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+
+	prevDash := false
+	for _, r := range s {
+		if r == '-' {
+			if !prevDash {
+				result.WriteRune(r)
+				prevDash = true
+			}
+		} else {
+			result.WriteRune(r)
+			prevDash = false
+		}
+	}
+
+	return result.String()
 }
 
 // DetermineIsPublic sets the IsPublic field based on the hierarchy rules:
