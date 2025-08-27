@@ -1,6 +1,6 @@
 module github.com/EwenQuim/pluie
 
-go 1.24.4
+go 1.25.0
 
 require (
 	github.com/adrg/frontmatter v0.2.0
@@ -22,7 +22,6 @@ require (
 	github.com/gomarkdown/markdown v0.0.0-20250810172220-2e2c11897d1a // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
-	github.com/invopop/yaml v0.3.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
