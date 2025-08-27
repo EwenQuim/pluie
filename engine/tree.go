@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/EwenQuim/pluie/model"
 )
@@ -36,6 +38,12 @@ func (t *TreeNode) AllNotes(yield func(*TreeNode) bool) {
 
 // BuildTree creates a tree structure from a list of notes
 func BuildTree(notes []model.Note) *TreeNode {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		slog.Info("Tree built", "in", elapsed.String())
+	}()
+
 	root := &TreeNode{
 		Name:     "Notes",
 		Path:     "",

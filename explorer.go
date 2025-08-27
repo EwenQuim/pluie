@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/EwenQuim/pluie/model"
@@ -29,7 +30,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 	folderMetadata := e.collectFolderMetadata(dir, currentPath)
 	notes := e.processDirectoryEntries(dir, currentPath, folderMetadata)
 
-	fmt.Println(len(notes), "notes found in", currentPath, "in", time.Since(start))
+	slog.Debug("explored", "notes", len(notes), "folder", currentPath, "in", time.Since(start))
 	return notes, nil
 }
 
@@ -72,24 +73,34 @@ func (e Explorer) parsePluieFile(currentPath, fileName string) map[string]any {
 	return metadata
 }
 
-// processDirectoryEntries processes all entries in a directory
+// processDirectoryEntries processes all entries in a directory using concurrency
 func (e Explorer) processDirectoryEntries(dir []os.DirEntry, currentPath string, folderMetadata map[string]map[string]any) []model.Note {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 	var notes []model.Note
 
+	// Process directories and markdown files concurrently
 	for _, entry := range dir {
-		if entry.IsDir() {
-			subfolderNotes, err := e.getFolderNotes(currentPath + "/" + entry.Name())
-			if err != nil {
-				continue // Skip folders with errors
+		wg.Go(func() {
+			if entry.IsDir() {
+				subfolderNotes, err := e.getFolderNotes(currentPath + "/" + entry.Name())
+				if err == nil && len(subfolderNotes) > 0 {
+					mu.Lock()
+					notes = append(notes, subfolderNotes...)
+					mu.Unlock()
+				}
+			} else if strings.HasSuffix(entry.Name(), ".md") {
+				if note := e.processMarkdownFile(currentPath, entry.Name(), folderMetadata); note != nil {
+					mu.Lock()
+					notes = append(notes, *note)
+					mu.Unlock()
+				}
 			}
-			notes = append(notes, subfolderNotes...)
-		} else if strings.HasSuffix(entry.Name(), ".md") {
-			if note := e.processMarkdownFile(currentPath, entry.Name(), folderMetadata); note != nil {
-				notes = append(notes, *note)
-			}
-		}
+
+		})
 	}
 
+	wg.Wait()
 	return notes
 }
 
@@ -150,5 +161,6 @@ func filterPublicNotes(notes []model.Note, publicByDefault bool) []model.Note {
 			publicNotes = append(publicNotes, note)
 		}
 	}
+	slog.Info("filtered notes", "publicNotes", len(publicNotes), "totalNotes", len(notes))
 	return publicNotes
 }

@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log/slog"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -24,29 +24,24 @@ func main() {
 
 	notes, err := explorer.getFolderNotes("")
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("Error exploring folder", "error", err)
 		return
 	}
 
 	// Filter out private notes
-	fmt.Print("Filtering private notes... ")
 	publicNotes := filterPublicNotes(notes, cfg.PublicByDefault)
-	fmt.Printf("%d public notes out of %d total\n", len(publicNotes), len(notes))
 
 	// Build backreferences for public notes only
-	fmt.Print("Building backreferences... ")
 	publicNotes = engine.BuildBackreferences(publicNotes)
-	fmt.Println("done")
 
+	// Create a map of notes for quick access by slug
 	notesMap := make(map[string]model.Note)
 	for _, note := range publicNotes {
 		notesMap[note.Slug] = note
 	}
 
 	// Build tree structure with public notes only
-	fmt.Print("Building tree structure... ")
 	tree := engine.BuildTree(publicNotes)
-	fmt.Println("done")
 
 	err = Server{
 		NotesMap: notesMap,

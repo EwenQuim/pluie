@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/EwenQuim/pluie/model"
 )
@@ -13,6 +15,11 @@ var wikiLinkRegex = regexp.MustCompile(`\[\[([^\]]*)\]\]`)
 // BuildBackreferences analyzes all notes and populates the ReferencedBy field
 // for each note based on wikilinks found in other notes' content
 func BuildBackreferences(notes []model.Note) []model.Note {
+	start := time.Now()
+	defer func() {
+		slog.Info("Backreferences built", "in", time.Since(start).String())
+	}()
+
 	// Create a map for quick note lookup by title
 	notesByTitle := make(map[string]*model.Note)
 
