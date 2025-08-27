@@ -52,13 +52,15 @@ func BuildTree(notes []model.Note) *TreeNode {
 	sortedNotes := make([]model.Note, len(notes))
 	copy(sortedNotes, notes)
 	sort.Slice(sortedNotes, func(i, j int) bool {
-		return sortedNotes[i].Slug < sortedNotes[j].Slug
+		return sortedNotes[i].Path < sortedNotes[j].Path
 	})
 
 	for _, note := range sortedNotes {
-		// Clean the slug and split into path components
-		cleanSlug := strings.TrimPrefix(note.Slug, "/")
-		pathParts := strings.Split(cleanSlug, "/")
+		// Clean the path and split into path components
+		cleanPath := strings.TrimPrefix(note.Path, "/")
+		// Remove the .md extension for path processing
+		cleanPath = strings.TrimSuffix(cleanPath, ".md")
+		pathParts := strings.Split(cleanPath, "/")
 
 		// If it's just a filename, put it in root
 		if len(pathParts) == 1 {

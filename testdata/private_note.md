@@ -1,5 +1,5 @@
 ---
-public: false
+publish: false
 title: "Private Test Note"
 sensitive: true
 ---

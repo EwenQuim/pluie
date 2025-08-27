@@ -1,5 +1,5 @@
 ---
-public: true
+publish: true
 title: "Public Test Note"
 author: "Test Author"
 ---

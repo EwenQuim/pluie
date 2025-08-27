@@ -12,7 +12,8 @@ type NoteReference struct {
 
 type Note struct {
 	Title        string          `json:"title"` // May contains spaces and slashes, like "articles/Hello World"
-	Slug         string          `json:"slug"`  // Slugified title, like "articles/hello-world"
+	Slug         string          `json:"slug"`  // Slugified title, like "my-articles/hello-world"
+	Path         string          `json:"path"`  // Full path relative to the base directory, like "My articles/Hello World.md"
 	Content      string          `json:"content"`
 	ReferencedBy []NoteReference `json:"referenced_by"` // Notes that have wikilinks to this note
 	IsPublic     bool            `json:"isPublic"`      // Whether this note is public or private
@@ -43,14 +44,14 @@ func (n *Note) BuildSlug() {
 }
 
 // DetermineIsPublic sets the IsPublic field based on the hierarchy rules:
-// 1. Check the note's own "public" metadata
+// 1. Check the note's own "publish" metadata
 // 2. Check parent folder metadata (if any)
-// 3. Fall back to the server's default (publicByDefault parameter)
-func (n *Note) DetermineIsPublic(publicByDefault bool, folderMetadata map[string]map[string]any) {
-	// First, check the note's own metadata for "public" field
-	if publicValue, exists := n.Metadata["public"]; exists {
-		if publicBool, ok := publicValue.(bool); ok {
-			n.IsPublic = publicBool
+// 3. Fall back to private by default
+func (n *Note) DetermineIsPublic(folderMetadata map[string]map[string]any) {
+	// First, check the note's own metadata for "publish" field
+	if publishValue, exists := n.Metadata["publish"]; exists {
+		if publishBool, ok := publishValue.(bool); ok {
+			n.IsPublic = publishBool
 			return
 		}
 	}
@@ -64,15 +65,15 @@ func (n *Note) DetermineIsPublic(publicByDefault bool, folderMetadata map[string
 
 		// Check if folder has metadata
 		if metadata, exists := folderMetadata[folderPath]; exists {
-			if publicValue, exists := metadata["public"]; exists {
-				if publicBool, ok := publicValue.(bool); ok {
-					n.IsPublic = publicBool
+			if publishValue, exists := metadata["publish"]; exists {
+				if publishBool, ok := publishValue.(bool); ok {
+					n.IsPublic = publishBool
 					return
 				}
 			}
 		}
 	}
 
-	// Third, fall back to server default
-	n.IsPublic = publicByDefault
+	// Third, fall back to private by default
+	n.IsPublic = false
 }

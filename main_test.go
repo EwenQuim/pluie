@@ -19,7 +19,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 			expectedNotes: map[string]bool{
 				"public_note":                true,  // explicit public: true
 				"private_note":               false, // explicit public: false
-				"default_note":               false, // no frontmatter, default false
+				"default_note":               false, // no frontmatter, now defaults to false
 				"public_folder/folder_note":  true,  // folder metadata public: true
 				"private_folder/secret_note": false, // folder metadata public: false
 			},
@@ -30,7 +30,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 			expectedNotes: map[string]bool{
 				"public_note":                true,  // explicit public: true
 				"private_note":               false, // explicit public: false
-				"default_note":               true,  // no frontmatter, default true
+				"default_note":               false, // no frontmatter, defaults to false
 				"public_folder/folder_note":  true,  // folder metadata public: true
 				"private_folder/secret_note": false, // folder metadata public: false
 			},
@@ -115,8 +115,8 @@ func TestNoteMetadataParsing(t *testing.T) {
 		t.Errorf("Expected author 'Test Author', got %v", publicNote.Metadata["author"])
 	}
 
-	if publicNote.Metadata["public"] != true {
-		t.Errorf("Expected public true, got %v", publicNote.Metadata["public"])
+	if publicNote.Metadata["publish"] != true {
+		t.Errorf("Expected publish true, got %v", publicNote.Metadata["publish"])
 	}
 }
 
@@ -194,8 +194,8 @@ func TestPublicByDefaultEnvironmentVariable(t *testing.T) {
 		t.Fatal("Default note not found")
 	}
 
-	if !defaultNote.IsPublic {
-		t.Error("Default note should be public when PUBLIC_BY_DEFAULT=true")
+	if defaultNote.IsPublic {
+		t.Error("Default note should be private by default (DetermineIsPublic now ignores PUBLIC_BY_DEFAULT)")
 	}
 }
 
@@ -255,34 +255,34 @@ func TestNoteDetermineIsPublic(t *testing.T) {
 		expectedPublic  bool
 	}{
 		{
-			name: "ExplicitPublicTrue",
+			name: "ExplicitPublishTrue",
 			note: model.Note{
 				Slug:     "test.md",
-				Metadata: map[string]any{"public": true},
+				Metadata: map[string]any{"publish": true},
 			},
 			publicByDefault: false,
 			folderMetadata:  map[string]map[string]any{},
 			expectedPublic:  true,
 		},
 		{
-			name: "ExplicitPublicFalse",
+			name: "ExplicitPublishFalse",
 			note: model.Note{
 				Slug:     "test.md",
-				Metadata: map[string]any{"public": false},
+				Metadata: map[string]any{"publish": false},
 			},
 			publicByDefault: true,
 			folderMetadata:  map[string]map[string]any{},
 			expectedPublic:  false,
 		},
 		{
-			name: "FolderMetadataPublic",
+			name: "FolderMetadataPublish",
 			note: model.Note{
 				Slug:     "folder/test.md",
 				Metadata: map[string]any{},
 			},
 			publicByDefault: false,
 			folderMetadata: map[string]map[string]any{
-				"folder": {"public": true},
+				"folder": {"publish": true},
 			},
 			expectedPublic: true,
 		},
@@ -294,7 +294,7 @@ func TestNoteDetermineIsPublic(t *testing.T) {
 			},
 			publicByDefault: true,
 			folderMetadata:  map[string]map[string]any{},
-			expectedPublic:  true,
+			expectedPublic:  false, // Now defaults to false regardless of publicByDefault
 		},
 		{
 			name: "DefaultPublicFalse",
@@ -304,13 +304,13 @@ func TestNoteDetermineIsPublic(t *testing.T) {
 			},
 			publicByDefault: false,
 			folderMetadata:  map[string]map[string]any{},
-			expectedPublic:  false,
+			expectedPublic:  false, // Now defaults to false regardless of publicByDefault
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.note.DetermineIsPublic(tt.publicByDefault, tt.folderMetadata)
+			tt.note.DetermineIsPublic(tt.folderMetadata)
 			if tt.note.IsPublic != tt.expectedPublic {
 				t.Errorf("Expected IsPublic=%t, got IsPublic=%t", tt.expectedPublic, tt.note.IsPublic)
 			}

@@ -7,6 +7,9 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
+// wikiLinkRegex matches [[linktitle]] and [[linktitle|displayname]] patterns
+var wikiLinkRegex = regexp.MustCompile(`\[\[([^\]]*)\]\]`)
+
 // BuildBackreferences analyzes all notes and populates the ReferencedBy field
 // for each note based on wikilinks found in other notes' content
 func BuildBackreferences(notes []model.Note) []model.Note {
@@ -19,16 +22,22 @@ func BuildBackreferences(notes []model.Note) []model.Note {
 		notesByTitle[notes[i].Title] = &notes[i]
 	}
 
-	// Regular expression to match [[linktitle]] and [[linktitle|displayname]] patterns
-	wikiLinkRegex := regexp.MustCompile(`\[\[([^\]]*)\]\]`)
-
 	// Analyze each note for wikilinks
 	for _, sourceNote := range notes {
 		// Find all wikilinks in the source note's content
-		wikiLinks := extractWikiLinks(sourceNote.Content, wikiLinkRegex)
+		contentWikiLinks := extractWikiLinks(sourceNote.Content)
+
+		// Find all wikilinks in the source note's metadata
+		metadataWikiLinks := extractWikiLinksFromMetadata(sourceNote.Metadata)
+
+		// Combine all wikilinks from both content and metadata
+		allWikiLinks := append(contentWikiLinks, metadataWikiLinks...)
+
+		// Remove duplicates from the combined list
+		uniqueWikiLinks := removeDuplicateStrings(allWikiLinks)
 
 		// For each wikilink, add this note as a reference to the target note
-		for _, targetTitle := range wikiLinks {
+		for _, targetTitle := range uniqueWikiLinks {
 			if targetNote, exists := notesByTitle[targetTitle]; exists {
 				// Add the source note as a reference to the target note
 				reference := model.NoteReference{
@@ -48,11 +57,11 @@ func BuildBackreferences(notes []model.Note) []model.Note {
 }
 
 // extractWikiLinks extracts all unique target titles from wikilinks in the content
-func extractWikiLinks(content string, regex *regexp.Regexp) []string {
+func extractWikiLinks(content string) []string {
 	var links []string
 	seen := make(map[string]bool)
 
-	matches := regex.FindAllStringSubmatch(content, -1)
+	matches := wikiLinkRegex.FindAllStringSubmatch(content, -1)
 	for _, match := range matches {
 		if len(match) < 2 {
 			continue
@@ -105,4 +114,55 @@ func containsReference(references []model.NoteReference, target model.NoteRefere
 		}
 	}
 	return false
+}
+
+// extractWikiLinksFromMetadata extracts wikilinks from all string values in metadata
+func extractWikiLinksFromMetadata(metadata map[string]any) []string {
+	var allLinks []string
+
+	for _, value := range metadata {
+		links := extractWikiLinksFromValue(value)
+		allLinks = append(allLinks, links...)
+	}
+
+	return allLinks
+}
+
+// extractWikiLinksFromValue recursively extracts wikilinks from any value type
+func extractWikiLinksFromValue(value any) []string {
+	var links []string
+
+	switch v := value.(type) {
+	case string:
+		// Extract wikilinks from string values
+		links = append(links, extractWikiLinks(v)...)
+	case []any:
+		// Handle arrays/slices
+		for _, item := range v {
+			links = append(links, extractWikiLinksFromValue(item)...)
+		}
+	case map[string]any:
+		// Handle nested objects
+		for _, nestedValue := range v {
+			links = append(links, extractWikiLinksFromValue(nestedValue)...)
+		}
+		// For other types (int, bool, etc.), we don't extract wikilinks
+	}
+
+	return links
+}
+
+// removeDuplicateStrings removes duplicate strings from a slice while preserving order
+func removeDuplicateStrings(slice []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	for _, item := range slice {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+
+	return result
 }

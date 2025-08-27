@@ -1,5 +1,5 @@
 ---
-public: false
+publish: false
 description: "This folder should make all notes private"
 category: "internal"
 ---

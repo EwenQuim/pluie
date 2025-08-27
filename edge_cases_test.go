@@ -33,13 +33,8 @@ func TestEdgeCases(t *testing.T) {
 			Metadata: map[string]any{},
 		}
 
-		// Should fall back to default
-		note.DetermineIsPublic(true, map[string]map[string]any{})
-		if !note.IsPublic {
-			t.Error("Note with empty metadata should use default (true)")
-		}
-
-		note.DetermineIsPublic(false, map[string]map[string]any{})
+		// Should fall back to default (now always false)
+		note.DetermineIsPublic(map[string]map[string]any{})
 		if note.IsPublic {
 			t.Error("Note with empty metadata should use default (false)")
 		}
@@ -52,22 +47,22 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		// Should not crash with nil metadata
-		note.DetermineIsPublic(true, map[string]map[string]any{})
-		if !note.IsPublic {
-			t.Error("Note with nil metadata should use default (true)")
+		note.DetermineIsPublic(map[string]map[string]any{})
+		if note.IsPublic {
+			t.Error("Note with nil metadata should use default (false)")
 		}
 	})
 
-	t.Run("NonBooleanPublicValue", func(t *testing.T) {
+	t.Run("NonBooleanPublishValue", func(t *testing.T) {
 		note := model.Note{
 			Slug:     "test.md",
-			Metadata: map[string]any{"public": "not a boolean"},
+			Metadata: map[string]any{"publish": "not a boolean"},
 		}
 
-		// Should fall back to default when public value is not a boolean
-		note.DetermineIsPublic(true, map[string]map[string]any{})
-		if !note.IsPublic {
-			t.Error("Note with non-boolean public value should use default (true)")
+		// Should fall back to default when publish value is not a boolean
+		note.DetermineIsPublic(map[string]map[string]any{})
+		if note.IsPublic {
+			t.Error("Note with non-boolean publish value should use default (false)")
 		}
 	})
 
@@ -78,29 +73,29 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		folderMetadata := map[string]map[string]any{
-			"very/deep/folder/structure": {"public": true},
+			"very/deep/folder/structure": {"publish": true},
 		}
 
-		note.DetermineIsPublic(false, folderMetadata)
+		note.DetermineIsPublic(folderMetadata)
 		if !note.IsPublic {
 			t.Error("Note in deep folder should inherit folder metadata")
 		}
 	})
 
-	t.Run("FolderMetadataWithNonBooleanPublic", func(t *testing.T) {
+	t.Run("FolderMetadataWithNonBooleanPublish", func(t *testing.T) {
 		note := model.Note{
 			Slug:     "folder/test.md",
 			Metadata: map[string]any{},
 		}
 
 		folderMetadata := map[string]map[string]any{
-			"folder": {"public": "not a boolean"},
+			"folder": {"publish": "not a boolean"},
 		}
 
-		// Should fall back to default when folder public value is not a boolean
-		note.DetermineIsPublic(true, folderMetadata)
-		if !note.IsPublic {
-			t.Error("Note with non-boolean folder public value should use default (true)")
+		// Should fall back to default when folder publish value is not a boolean
+		note.DetermineIsPublic(folderMetadata)
+		if note.IsPublic {
+			t.Error("Note with non-boolean folder publish value should use default (false)")
 		}
 	})
 
@@ -111,9 +106,9 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		// Should not crash with empty slug
-		note.DetermineIsPublic(true, map[string]map[string]any{})
-		if !note.IsPublic {
-			t.Error("Note with empty slug should use default (true)")
+		note.DetermineIsPublic(map[string]map[string]any{})
+		if note.IsPublic {
+			t.Error("Note with empty slug should use default (false)")
 		}
 	})
 
@@ -124,10 +119,10 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		folderMetadata := map[string]map[string]any{
-			"folder": {"public": true},
+			"folder": {"publish": true},
 		}
 
-		note.DetermineIsPublic(false, folderMetadata)
+		note.DetermineIsPublic(folderMetadata)
 		if !note.IsPublic {
 			t.Error("Note without extension should still inherit folder metadata")
 		}
@@ -140,13 +135,13 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		folderMetadata := map[string]map[string]any{
-			"subfolder": {"public": true},
+			"subfolder": {"publish": true},
 		}
 
 		// Root level note should not inherit subfolder metadata
-		note.DetermineIsPublic(false, folderMetadata)
+		note.DetermineIsPublic(folderMetadata)
 		if note.IsPublic {
-			t.Error("Root level note should not inherit subfolder metadata")
+			t.Error("Root level note should default to private (false)")
 		}
 	})
 

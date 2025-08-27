@@ -157,12 +157,13 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 				Title:    strings.TrimSuffix(name, ".md"),
 				Content:  finalContent,
 				Slug:     path.Join(currentPath, name),
+				Path:     path.Join(currentPath, name),
 				Metadata: metadata,
 			}
 			note.BuildSlug()
 
 			// Determine if the note is public based on hierarchy
-			note.DetermineIsPublic(e.PublicByDefault, folderMetadata)
+			note.DetermineIsPublic(folderMetadata)
 
 			notes = append(notes, note)
 		}
