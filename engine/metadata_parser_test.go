@@ -6,6 +6,104 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
+func TestRemoveCommentBlocks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "single line comment block",
+			input:    "This is text %% this is a comment %% and more text",
+			expected: "This is text  and more text",
+		},
+		{
+			name:     "multiple single line comment blocks",
+			input:    "Start %% comment1 %% middle %% comment2 %% end",
+			expected: "Start  middle  end",
+		},
+		{
+			name: "multi-line comment block",
+			input: `This is text
+%% 
+This is a multi-line comment
+that spans several lines
+%%
+And this is after`,
+			expected: `This is text
+
+And this is after`,
+		},
+		{
+			name:     "comment block at start",
+			input:    "%% comment at start %% followed by text",
+			expected: " followed by text",
+		},
+		{
+			name:     "comment block at end",
+			input:    "Text before %% comment at end %%",
+			expected: "Text before ",
+		},
+		{
+			name:     "only comment block",
+			input:    "%% only comment %%",
+			expected: "",
+		},
+		{
+			name:     "no comment blocks",
+			input:    "This text has no comment blocks at all",
+			expected: "This text has no comment blocks at all",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "nested percent signs without comment blocks",
+			input:    "This has % single percent % signs but no comment blocks",
+			expected: "This has % single percent % signs but no comment blocks",
+		},
+		{
+			name: "complex mixed content",
+			input: `# Title
+
+This is regular content.
+
+%% This is a comment that should be removed %%
+
+More content here.
+
+%% 
+Multi-line comment
+with multiple lines
+%%
+
+Final content.`,
+			expected: `# Title
+
+This is regular content.
+
+
+
+More content here.
+
+
+
+Final content.`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := RemoveCommentBlocks(tt.input)
+			if result != tt.expected {
+				t.Errorf("RemoveCommentBlocks() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestParseWikiLinksInMetadata(t *testing.T) {
 	// Create test notes
 	notes := []model.Note{

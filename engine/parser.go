@@ -8,6 +8,14 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
+// RemoveCommentBlocks removes all content between %% markers (inclusive)
+func RemoveCommentBlocks(content string) string {
+	// Regular expression to match content between %% markers (including the markers)
+	// The (?s) flag enables dot-all mode, making . match newlines as well
+	re := regexp.MustCompile(`(?s)%%.*?%%`)
+	return re.ReplaceAllString(content, "")
+}
+
 // ParseWikiLinksInMetadata processes wikilinks in metadata values (strings and lists)
 func ParseWikiLinksInMetadata(metadata map[string]any, tree *TreeNode) map[string]any {
 	if metadata == nil {

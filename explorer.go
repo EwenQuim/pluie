@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/adrg/frontmatter"
 )
@@ -121,6 +122,9 @@ func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetada
 	} else {
 		finalContent = string(parsedContent)
 	}
+
+	// Remove comment blocks between %% markers before displaying
+	finalContent = engine.RemoveCommentBlocks(finalContent)
 
 	// Extract title from frontmatter or filename
 	title := e.extractTitle(fileName, metadata)
