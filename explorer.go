@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/EwenQuim/pluie/model"
 	"github.com/adrg/frontmatter"
@@ -15,6 +16,7 @@ type Explorer struct {
 }
 
 func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
+	start := time.Now()
 	if e.shouldSkipPath(currentPath) {
 		return nil, nil
 	}
@@ -27,7 +29,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 	folderMetadata := e.collectFolderMetadata(dir, currentPath)
 	notes := e.processDirectoryEntries(dir, currentPath, folderMetadata)
 
-	fmt.Println(len(notes), "notes found in", currentPath)
+	fmt.Println(len(notes), "notes found in", currentPath, "in", time.Since(start))
 	return notes, nil
 }
 
