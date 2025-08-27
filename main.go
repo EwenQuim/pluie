@@ -153,8 +153,16 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 				finalContent = string(parsedContent)
 			}
 
+			// Set title from frontmatter if available, otherwise use filename
+			title := strings.TrimSuffix(name, ".md")
+			if frontmatterTitle, exists := metadata["title"]; exists {
+				if titleStr, ok := frontmatterTitle.(string); ok && titleStr != "" {
+					title = titleStr
+				}
+			}
+
 			note := model.Note{
-				Title:    strings.TrimSuffix(name, ".md"),
+				Title:    title,
 				Content:  finalContent,
 				Slug:     path.Join(currentPath, name),
 				Path:     path.Join(currentPath, name),

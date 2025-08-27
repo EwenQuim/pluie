@@ -120,6 +120,61 @@ func TestNoteMetadataParsing(t *testing.T) {
 	}
 }
 
+func TestFrontmatterTitleOverride(t *testing.T) {
+	explorer := Explorer{
+		BasePath:        "testdata",
+		PublicByDefault: false,
+	}
+
+	notes, err := explorer.getFolderNotes("")
+	if err != nil {
+		t.Fatalf("getFolderNotes() error = %v", err)
+	}
+
+	tests := []struct {
+		slug          string
+		expectedTitle string
+		description   string
+	}{
+		{
+			slug:          "public_note",
+			expectedTitle: "Public Test Note",
+			description:   "should use frontmatter title instead of filename",
+		},
+		{
+			slug:          "private_note",
+			expectedTitle: "Private Test Note",
+			description:   "should use frontmatter title instead of filename",
+		},
+		{
+			slug:          "default_note",
+			expectedTitle: "default_note",
+			description:   "should use filename when no frontmatter title exists",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.slug, func(t *testing.T) {
+			var foundNote *model.Note
+			for _, note := range notes {
+				if note.Slug == tt.slug {
+					foundNote = &note
+					break
+				}
+			}
+
+			if foundNote == nil {
+				t.Fatalf("Note with slug %s not found", tt.slug)
+			}
+
+			if foundNote.Title != tt.expectedTitle {
+				t.Errorf("Note %s %s: expected title '%s', got '%s'",
+					tt.slug, tt.description, tt.expectedTitle, foundNote.Title)
+			}
+		})
+	}
+}
+
 func TestFolderMetadataInheritance(t *testing.T) {
 	explorer := Explorer{
 		BasePath:        "testdata",
