@@ -34,14 +34,13 @@ func (rs Resource) Layout(node ...g.Node) g.Node {
 			g.If(siteIcon != "",
 				Meta(Name("msapplication-TileImage"), Content(siteIcon)),
 			),
-			// Link(Rel("stylesheet"), Type("text/css"), Href("/static/style.css")),
 			Link(Rel("stylesheet"), Type("text/css"), Href("/static/tailwind.min.css")),
 			Script(Defer(), Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js")),
 			Script(Defer(), Src("/static/app.js")),
 		),
 		Body(
 			ID("app"),
-			Class(""),
+			Class("scroll-smooth"),
 			Main(
 				node...,
 			),

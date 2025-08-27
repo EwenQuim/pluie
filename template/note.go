@@ -250,7 +250,7 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 
 		node := A(
 			Href("#"+item.ID),
-			Class(fmt.Sprintf("block py-1 px-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors %s %s %s", indentClass, textSizeClass, fontWeightClass)),
+			Class(fmt.Sprintf("block py-1 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors [&.active]:text-purple-600 [&.active]:bg-gray-100 [&.active]:font-medium %s %s %s", indentClass, textSizeClass, fontWeightClass)),
 			g.Attr("onclick", "handleTOCClick(event, this)"),
 			g.Text(item.Text),
 		)
@@ -264,13 +264,13 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 // renderYamlProperty renders a YAML property with appropriate HTML based on its type
 func renderYamlProperty(key string, value any) gomponents.Node {
 	return Div(
-		Class("flex flex-col sm:flex-row sm:items-start items-center py-3 border-b border-gray-100 last:border-b-0 yaml-property-row"),
+		Class("flex flex-col sm:flex-row sm:items-start items-center py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-150 hover:bg-gray-50"),
 		Dt(
-			Class("text-sm font-medium text-gray-700 ml-4 mb-2 sm:mb-0 sm:w-1/3 yaml-property-key"),
+			Class("text-sm font-medium text-gray-700 ml-4 mb-2 sm:mb-0 sm:w-1/3"),
 			g.Text(key),
 		),
 		Dd(
-			Class("sm:w-2/3"),
+			Class("sm:w-2/3 mr-4 sm:mr-0"),
 			renderYamlValue(value),
 		),
 	)
@@ -359,7 +359,7 @@ func renderYamlValue(value any) gomponents.Node {
 		// Check if the string contains markdown links (parsed wikilinks)
 		if strings.Contains(str, "](") && strings.Contains(str, "[") {
 			return Div(
-				Class("text-sm text-gray-900 bg-gray-50 px-3 py-1 rounded border yaml-property-value"),
+				Class("text-sm text-gray-900 bg-slate-50 hover:bg-slate-100 px-3 py-1 rounded border border-slate-200 hover:border-slate-300 font-mono transition-all duration-150"),
 				g.Raw(string(markdown.Markdown(str))),
 			)
 		}
@@ -406,7 +406,7 @@ func renderYamlValue(value any) gomponents.Node {
 
 		// Regular string
 		return Div(
-			Class("text-sm text-gray-900 bg-gray-50 px-3 py-1 rounded border yaml-property-value"),
+			Class("text-sm text-gray-900 bg-slate-50 hover:bg-slate-100 px-3 py-1 rounded border border-slate-200 hover:border-slate-300 font-mono transition-all duration-150"),
 			g.Text(str),
 		)
 	case int, int32, int64, float32, float64:
@@ -422,7 +422,7 @@ func renderYamlValue(value any) gomponents.Node {
 	default:
 		// Fallback for unknown types
 		return Div(
-			Class("text-sm text-gray-900 font-mono bg-gray-50 px-3 py-1 rounded border yaml-property-value"),
+			Class("text-sm text-gray-900 bg-slate-50 hover:bg-slate-100 px-3 py-1 rounded border border-slate-200 hover:border-slate-300 font-mono transition-all duration-150"),
 			g.Text(fmt.Sprintf("%v", value)),
 		)
 	}
@@ -601,7 +601,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 						Class("mb-6"),
 						// YAML front matter header with toggle button
 						Div(
-							Class("flex items-center justify-between bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-t-lg px-4 py-3"),
+							Class("flex items-center justify-between bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200 rounded-t-lg px-4 py-3 transition-all duration-200"),
 							Div(
 								Class("flex items-center gap-2"),
 								Span(
@@ -623,7 +623,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 						),
 						// YAML front matter content (hidden by default)
 						Div(
-							Class("bg-white border-l border-r border-b border-gray-200 rounded-b-lg"),
+							Class("bg-white border-l border-r border-b border-gray-200 rounded-b-lg transition-all duration-300 overflow-hidden"),
 							g.Attr("id", "yaml-content"),
 							g.Attr("style", "display: none;"),
 							Div(
@@ -666,7 +666,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 			),
 			// Right sidebar with "On this page" table of contents
 			Div(
-				Class("w-64 bg-white border-l border-gray-200 p-4 flex flex-col h-full"),
+				Class("w-64 bg-white border-l border-gray-200 p-4 hidden md:flex flex-col h-full"),
 				ID("toc-sidebar"),
 				Div(
 					Class("mb-4"),
