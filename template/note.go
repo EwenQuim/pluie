@@ -248,9 +248,9 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 // renderYamlProperty renders a YAML property with appropriate HTML based on its type
 func renderYamlProperty(key string, value any) gomponents.Node {
 	return Div(
-		Class("flex flex-col sm:flex-row sm:items-start py-3 border-b border-gray-100 last:border-b-0 yaml-property-row"),
+		Class("flex flex-col sm:flex-row sm:items-start items-center py-3 border-b border-gray-100 last:border-b-0 yaml-property-row"),
 		Dt(
-			Class("text-sm font-medium text-gray-700 mb-2 sm:mb-0 sm:w-1/3 yaml-property-key"),
+			Class("text-sm font-medium text-gray-700 ml-4 mb-2 sm:mb-0 sm:w-1/3 yaml-property-key"),
 			g.Text(key),
 		),
 		Dd(
@@ -289,9 +289,17 @@ func renderYamlValue(value any) gomponents.Node {
 		return Div(
 			Class("flex flex-wrap gap-1"),
 			g.Group(g.Map(v, func(item interface{}) gomponents.Node {
+				itemStr := fmt.Sprintf("%v", item)
+				// Check if the item contains markdown links (parsed wikilinks)
+				if strings.Contains(itemStr, "](") && strings.Contains(itemStr, "[") {
+					return Span(
+						Class("inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"),
+						g.Raw(string(markdown.Markdown(itemStr))),
+					)
+				}
 				return Span(
-					Class("inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"),
-					g.Text(fmt.Sprintf("%v", item)),
+					Class("inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200"),
+					g.Text(itemStr),
 				)
 			})),
 		)
@@ -329,6 +337,14 @@ func renderYamlValue(value any) gomponents.Node {
 			return Span(
 				Class("text-sm text-gray-500 italic"),
 				g.Text("(empty)"),
+			)
+		}
+
+		// Check if the string contains markdown links (parsed wikilinks)
+		if strings.Contains(str, "](") && strings.Contains(str, "[") {
+			return Div(
+				Class("text-sm text-gray-900 bg-gray-50 px-3 py-1 rounded border yaml-property-value"),
+				g.Raw(string(markdown.Markdown(str))),
 			)
 		}
 
@@ -406,7 +422,8 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	var referencedBy []model.NoteReference
 
 	if note != nil {
-		matter = note.Metadata
+		// Parse wikilinks in metadata before using it
+		matter = engine.ParseWikiLinksInMetadata(note.Metadata, rs.Tree)
 		slug = note.Slug
 		title = note.Title
 		referencedBy = note.ReferencedBy
@@ -594,7 +611,6 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 							g.Attr("id", "yaml-content"),
 							g.Attr("style", "display: none;"),
 							Div(
-								Class("px-2 md:px-4"),
 								Dl(
 									Class("grid grid-cols-1"),
 									g.Group(MapMapSorted(matter, func(key string, value any) gomponents.Node {

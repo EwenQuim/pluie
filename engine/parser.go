@@ -8,6 +8,45 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
+// ParseWikiLinksInMetadata processes wikilinks in metadata values (strings and lists)
+func ParseWikiLinksInMetadata(metadata map[string]any, tree *TreeNode) map[string]any {
+	if metadata == nil {
+		return metadata
+	}
+
+	result := make(map[string]any)
+	for key, value := range metadata {
+		result[key] = parseWikiLinksInValue(value, tree)
+	}
+	return result
+}
+
+// parseWikiLinksInValue recursively processes wikilinks in a metadata value
+func parseWikiLinksInValue(value any, tree *TreeNode) any {
+	switch v := value.(type) {
+	case string:
+		// Parse wikilinks in string values
+		return ParseWikiLinks(v, tree)
+	case []interface{}:
+		// Parse wikilinks in list items
+		result := make([]interface{}, len(v))
+		for i, item := range v {
+			result[i] = parseWikiLinksInValue(item, tree)
+		}
+		return result
+	case map[string]interface{}:
+		// Recursively parse wikilinks in nested objects
+		result := make(map[string]interface{})
+		for k, val := range v {
+			result[k] = parseWikiLinksInValue(val, tree)
+		}
+		return result
+	default:
+		// Return other types unchanged (bool, int, float, etc.)
+		return value
+	}
+}
+
 // ParseWikiLinks transforms [[linktitle]] and [[linktitle|displayname]] into [title](link) format
 func ParseWikiLinks(content string, tree *TreeNode) string {
 	// Regular expression to match [[linktitle]] and [[linktitle|displayname]] patterns

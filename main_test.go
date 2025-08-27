@@ -22,6 +22,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 				"default_note":               false, // no frontmatter, now defaults to false
 				"public_folder/folder_note":  true,  // folder metadata public: true
 				"private_folder/secret_note": false, // folder metadata public: false
+				"metadata_wikilinks_test":    true,  // explicit public: true
 			},
 		},
 		{
@@ -33,6 +34,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 				"default_note":               false, // no frontmatter, defaults to false
 				"public_folder/folder_note":  true,  // folder metadata public: true
 				"private_folder/secret_note": false, // folder metadata public: false
+				"metadata_wikilinks_test":    true,  // explicit public: true
 			},
 		},
 	}

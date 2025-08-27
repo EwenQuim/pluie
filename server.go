@@ -86,7 +86,7 @@ func (s Server) Start() error {
 		}
 
 		// Additional security check: ensure note is public
-		if !note.IsPublic {
+		if os.Getenv("PUBLIC_BY_DEFAULT") != "true" && !note.IsPublic {
 			slog.Info("Private note access denied", "slug", slug)
 			return s.rs.NoteWithList(nil, searchQuery)
 		}
