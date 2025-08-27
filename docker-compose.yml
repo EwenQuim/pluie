@@ -1,6 +1,8 @@
 services:
   pluie:
+    image: ewenquim/pluie:latest
     build: .
+    platform: linux/amd64
     container_name: pluie-app
     restart: unless-stopped
     ports:
@@ -13,6 +15,7 @@ services:
       SITE_DESCRIPTION: My personal knowledge base # Default empty
       SITE_ICON: https://avatars.githubusercontent.com/u/46993939?v=4 # Default empty (no icon)
       PUBLIC_BY_DEFAULT: true # Default false for privacy
+      HIDE_YAML_FRONTMATTER: false # Default false
     develop:
       watch:
         - action: rebuild

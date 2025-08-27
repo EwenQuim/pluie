@@ -200,14 +200,41 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 
 	for _, item := range tocItems {
 		// Calculate indentation based on heading level
+		// H1 = no indent, H2 = small indent, H3+ = progressively more indent
 		var indentClass string
-		if item.Level > 2 {
-			indentClass = fmt.Sprintf("ml-%d", (item.Level-2)*3)
+		var textSizeClass string
+		var fontWeightClass string
+
+		switch item.Level {
+		case 1:
+			indentClass = ""
+			textSizeClass = "text-sm"
+			fontWeightClass = "font-semibold"
+		case 2:
+			indentClass = ""
+			textSizeClass = "text-sm"
+			fontWeightClass = "font-medium"
+		case 3:
+			indentClass = "ml-3"
+			textSizeClass = "text-xs"
+			fontWeightClass = "font-normal"
+		case 4:
+			indentClass = "ml-6"
+			textSizeClass = "text-xs"
+			fontWeightClass = "font-normal"
+		case 5:
+			indentClass = "ml-9"
+			textSizeClass = "text-xs"
+			fontWeightClass = "font-normal"
+		default: // H6 and beyond
+			indentClass = "ml-12"
+			textSizeClass = "text-xs"
+			fontWeightClass = "font-normal"
 		}
 
 		node := A(
 			Href("#"+item.ID),
-			Class(fmt.Sprintf("block py-1 px-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors %s", indentClass)),
+			Class(fmt.Sprintf("block py-1 px-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors %s %s %s", indentClass, textSizeClass, fontWeightClass)),
 			g.Attr("onclick", "handleTOCClick(event, this)"),
 			g.Text(item.Text),
 		)
@@ -216,6 +243,157 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 	}
 
 	return nodes
+}
+
+// renderYamlProperty renders a YAML property with appropriate HTML based on its type
+func renderYamlProperty(key string, value any) gomponents.Node {
+	return Div(
+		Class("flex flex-col sm:flex-row sm:items-start py-3 border-b border-gray-100 last:border-b-0 yaml-property-row"),
+		Dt(
+			Class("text-sm font-medium text-gray-700 mb-2 sm:mb-0 sm:w-1/3 yaml-property-key"),
+			g.Text(key),
+		),
+		Dd(
+			Class("sm:w-2/3"),
+			renderYamlValue(value),
+		),
+	)
+}
+
+// renderYamlValue renders a YAML value with appropriate HTML based on its type
+func renderYamlValue(value any) gomponents.Node {
+	switch v := value.(type) {
+	case bool:
+		// Render boolean as a checkbox-style indicator
+		return Div(
+			Class("flex items-center gap-2"),
+			Div(
+				Class(fmt.Sprintf("w-4 h-4 rounded border-2 flex items-center justify-center %s",
+					func() string {
+						if v {
+							return "bg-green-100 border-green-500 text-green-700"
+						}
+						return "bg-gray-100 border-gray-300 text-gray-400"
+					}())),
+				g.If(v, g.Text("✓")),
+			),
+		)
+	case []interface{}:
+		// Render array as pills/tags
+		if len(v) == 0 {
+			return Span(
+				Class("text-sm text-gray-500 italic"),
+				g.Text("(empty list)"),
+			)
+		}
+		return Div(
+			Class("flex flex-wrap gap-1"),
+			g.Group(g.Map(v, func(item interface{}) gomponents.Node {
+				return Span(
+					Class("inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"),
+					g.Text(fmt.Sprintf("%v", item)),
+				)
+			})),
+		)
+	case map[string]interface{}:
+		// Render object as nested key-value pairs
+		if len(v) == 0 {
+			return Span(
+				Class("text-sm text-gray-500 italic"),
+				g.Text("(empty object)"),
+			)
+		}
+		return Div(
+			Class("bg-gray-50 border border-gray-200 rounded-md p-3"),
+			Dl(
+				Class("space-y-2"),
+				g.Group(MapMapSorted(v, func(nestedKey string, nestedValue any) gomponents.Node {
+					return Div(
+						Class("flex flex-col sm:flex-row sm:items-center"),
+						Dt(
+							Class("text-xs font-medium text-gray-600 sm:w-1/3"),
+							g.Text(nestedKey),
+						),
+						Dd(
+							Class("text-xs text-gray-800 font-mono bg-white px-2 py-1 rounded border sm:w-2/3 mt-1 sm:mt-0"),
+							g.Text(fmt.Sprintf("%v", nestedValue)),
+						),
+					)
+				})),
+			),
+		)
+	case string:
+		// Render string with special handling for URLs, emails, etc.
+		str := strings.TrimSpace(v)
+		if str == "" {
+			return Span(
+				Class("text-sm text-gray-500 italic"),
+				g.Text("(empty)"),
+			)
+		}
+
+		// Check if it's a URL
+		if strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") {
+			return A(
+				Href(str),
+				Target("_blank"),
+				Rel("noopener noreferrer"),
+				Class("inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline bg-blue-50 px-3 py-1 rounded border border-blue-200 transition-colors"),
+				g.Text(str),
+				Span(
+					Class("text-xs"),
+					g.Text("↗"),
+				),
+			)
+		}
+
+		// Check if it's an email
+		if strings.Contains(str, "@") && strings.Contains(str, ".") {
+			return A(
+				Href("mailto:"+str),
+				Class("inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 hover:underline bg-purple-50 px-3 py-1 rounded border border-purple-200 transition-colors"),
+				g.Text(str),
+				Span(
+					Class("text-xs"),
+					g.Text("✉"),
+				),
+			)
+		}
+
+		// Check if it's a date-like string
+		if regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`).MatchString(str) {
+			return Div(
+				Class("inline-flex items-center gap-1 text-sm text-indigo-700 bg-indigo-50 px-3 py-1 rounded border border-indigo-200"),
+				Span(
+					Class("text-xs"),
+					g.Text("📅"),
+				),
+				g.Text(str),
+			)
+		}
+
+		// Regular string
+		return Div(
+			Class("text-sm text-gray-900 bg-gray-50 px-3 py-1 rounded border yaml-property-value"),
+			g.Text(str),
+		)
+	case int, int32, int64, float32, float64:
+		// Render numbers with special styling
+		return Div(
+			Class("inline-flex items-center gap-1 text-sm text-orange-700 bg-orange-50 px-3 py-1 rounded border border-orange-200 font-mono"),
+			Span(
+				Class("text-xs"),
+				g.Text("#"),
+			),
+			g.Text(fmt.Sprintf("%v", v)),
+		)
+	default:
+		// Fallback for unknown types
+		return Div(
+			Class("text-sm text-gray-900 font-mono bg-gray-50 px-3 py-1 rounded border yaml-property-value"),
+			g.Text(fmt.Sprintf("%v", value)),
+		)
+	}
 }
 
 // NoteWithList displays a note with the list of all notes on the left side
@@ -260,7 +438,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	return rs.Layout(
 		Div(
-			Class("flex gap-2 h-screen"),
+			Class("flex gap-2 h-screen w-screen justify-between"),
 			// Left sidebar with notes list
 			Div(
 				Class("w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full"),
@@ -306,7 +484,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 						Input(
 							Type("text"),
 							Name("search"),
-							Placeholder("Search page or heading..."),
+							Placeholder("Search page..."),
 							Value(searchQuery),
 							Class("block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"),
 							g.Attr("hx-get", "/"+slug),
@@ -380,19 +558,51 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 			),
 			// Main content area with the note
 			Div(
-				Class("flex-1 overflow-y-auto p-4 px-8"),
+				Class("flex-1 container overflow-y-auto p-4 px-8"),
 				H1(
-					Class("text-3xl font-bold mb-4"),
+					Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
 					g.If(title != "", g.Text(title)),
 				),
-				g.If(len(matter) > 0,
-					Ul(
-						Class("bg-gray-100 p-4 rounded-lg mb-6"),
-						g.Group(MapMapSorted(matter, func(key string, value any) gomponents.Node {
-							return Li(
-								g.Text(fmt.Sprintf("%s: %v", key, value)),
-							)
-						})),
+				g.If(len(matter) > 0 && os.Getenv("HIDE_YAML_FRONTMATTER") != "true",
+					Div(
+						Class("mb-6"),
+						// YAML front matter header with toggle button
+						Div(
+							Class("flex items-center justify-between bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-t-lg px-4 py-3"),
+							Div(
+								Class("flex items-center gap-2"),
+								Span(
+									Class("text-xs font-mono text-gray-500 uppercase tracking-wide"),
+									g.Textf("%d properties", len(matter)),
+								),
+							),
+							Button(
+								Class("flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"),
+								g.Attr("onclick", "toggleYamlFrontmatter()"),
+								g.Attr("id", "yaml-toggle-btn"),
+								Span(
+									Class("transition-transform duration-200"),
+									g.Attr("id", "yaml-chevron"),
+									g.Text("▶"),
+								),
+								Span(g.Text("Show")),
+							),
+						),
+						// YAML front matter content (hidden by default)
+						Div(
+							Class("bg-white border-l border-r border-b border-gray-200 rounded-b-lg"),
+							g.Attr("id", "yaml-content"),
+							g.Attr("style", "display: none;"),
+							Div(
+								Class("px-2 md:px-4"),
+								Dl(
+									Class("grid grid-cols-1"),
+									g.Group(MapMapSorted(matter, func(key string, value any) gomponents.Node {
+										return renderYamlProperty(key, value)
+									})),
+								),
+							),
+						),
 					),
 				),
 				Div(

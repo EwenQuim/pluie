@@ -191,10 +191,60 @@ function throttle(func, wait) {
 	};
 }
 
+// YAML front matter toggle functionality
+function toggleYamlFrontmatter() {
+	const yamlContent = document.getElementById('yaml-content');
+	const yamlChevron = document.getElementById('yaml-chevron');
+	const yamlToggleBtn = document.getElementById('yaml-toggle-btn');
+
+	if (yamlContent && yamlChevron && yamlToggleBtn) {
+		const isCurrentlyHidden = yamlContent.style.display === 'none';
+
+		if (isCurrentlyHidden) {
+			// Show YAML content
+			yamlContent.style.display = 'block';
+			yamlChevron.textContent = '▼';
+			yamlToggleBtn.querySelector('span:last-child').textContent = 'Hide';
+		} else {
+			// Hide YAML content
+			yamlContent.style.display = 'none';
+			yamlChevron.textContent = '▶';
+			yamlToggleBtn.querySelector('span:last-child').textContent = 'Show';
+		}
+
+		// Store YAML front matter state in localStorage
+		localStorage.setItem('yamlFrontmatterOpen', isCurrentlyHidden.toString());
+	}
+}
+
+// Restore YAML front matter state from localStorage
+function restoreYamlFrontmatterState() {
+	const yamlContent = document.getElementById('yaml-content');
+	const yamlChevron = document.getElementById('yaml-chevron');
+	const yamlToggleBtn = document.getElementById('yaml-toggle-btn');
+
+	if (yamlContent && yamlChevron && yamlToggleBtn) {
+		const isOpen = localStorage.getItem('yamlFrontmatterOpen') === 'true';
+
+		if (isOpen) {
+			yamlContent.style.display = 'block';
+			yamlChevron.textContent = '▼';
+			yamlToggleBtn.querySelector('span:last-child').textContent = 'Hide';
+		} else {
+			yamlContent.style.display = 'none';
+			yamlChevron.textContent = '▶';
+			yamlToggleBtn.querySelector('span:last-child').textContent = 'Show';
+		}
+	}
+}
+
 // Keyboard shortcuts
 document.addEventListener('DOMContentLoaded', function () {
 	// Restore folder states when page loads
 	restoreFolderStates();
+
+	// Restore YAML front matter state when page loads
+	restoreYamlFrontmatterState();
 
 	// Add IDs to headings to match TOC structure
 	addHeadingIds();

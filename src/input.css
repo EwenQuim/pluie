@@ -54,3 +54,77 @@ html {
   background-color: #f9fafb;
   color: #374151;
 }
+
+/* YAML Front Matter Styling */
+.yaml-frontmatter-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.yaml-frontmatter-header:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.yaml-frontmatter-content {
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.yaml-property-key {
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.yaml-property-value {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New",
+    monospace;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+
+.yaml-property-value:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.yaml-toggle-button {
+  transition: all 0.2s ease;
+}
+
+.yaml-toggle-button:hover {
+  color: #1f2937;
+  transform: translateY(-1px);
+}
+
+.yaml-chevron {
+  transition: transform 0.2s ease;
+}
+
+.yaml-property-row {
+  transition: background-color 0.15s ease;
+}
+
+.yaml-property-row:hover {
+  background-color: #f9fafb;
+}
+
+/* Animation for YAML content show/hide */
+#yaml-content {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.yaml-badge {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
