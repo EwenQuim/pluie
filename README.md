@@ -46,6 +46,7 @@ Pluie is a lightning-fast, privacy-focused markdown wiki server built in Go that
 
 - **Single binary**: No dependencies, just one executable file
 - **Docker ready**: Complete containerization with hot-reload development
+- **Auto hot-reload**: Automatically detects and reloads file changes in real-time
 - **Memory efficient**: Loads all notes into memory for instant access
 - **Fast startup**: Builds backreferences and tree structure on launch
 - **Static assets**: Embedded CSS and JavaScript, no external dependencies
