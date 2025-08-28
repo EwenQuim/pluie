@@ -162,6 +162,15 @@ func slugify(text string) string {
 	return slug
 }
 
+// removeObsidianCallouts removes Obsidian callout notations from content
+func removeObsidianCallouts(content string) string {
+	// Regular expression to match Obsidian callout lines: > [!KEYWORD].*
+	calloutRegex := regexp.MustCompile(`(?m)^>\s*\[![\w\-]+\].*$`)
+
+	// Remove callout lines
+	return calloutRegex.ReplaceAllString(content, "")
+}
+
 // extractHeadings extracts headings from markdown content and returns TOC items
 func extractHeadings(content string) []TOCItem {
 	var tocItems []TOCItem
@@ -187,7 +196,7 @@ func extractHeadings(content string) []TOCItem {
 				usedSlugs[baseSlug] = count + 1
 				id = fmt.Sprintf("%s-%d", baseSlug, count+1)
 			} else {
-				usedSlugs[baseSlug] = 0
+				usedSlugs[baseSlug] = 1
 			}
 
 			tocItems = append(tocItems, TOCItem{
@@ -451,6 +460,9 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	// Parse wiki-style links before markdown processing
 	parsedContent := engine.ParseWikiLinks(string(content), rs.Tree)
+
+	// Remove Obsidian callout notations from the content
+	parsedContent = removeObsidianCallouts(parsedContent)
 
 	// Extract headings for table of contents
 	tocItems := extractHeadings(parsedContent)
