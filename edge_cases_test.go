@@ -263,7 +263,7 @@ func TestMemoryUsage(t *testing.T) {
 	}
 
 	// Run the operation multiple times to check for memory leaks
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		notes, err := explorer.getFolderNotes("")
 		if err != nil {
 			t.Fatalf("Memory test failed at iteration %d: %v", i, err)

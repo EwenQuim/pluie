@@ -44,7 +44,7 @@ func main() {
 	tree := engine.BuildTree(publicNotes)
 
 	err = Server{
-		NotesMap: notesMap,
+		NotesMap: &notesMap,
 		Tree:     tree,
 		rs: template.Resource{
 			Tree: tree,

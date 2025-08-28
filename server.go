@@ -16,8 +16,8 @@ import (
 )
 
 type Server struct {
-	NotesMap map[string]model.Note // Slug -> Note
-	Tree     *engine.TreeNode      // Tree structure of notes
+	NotesMap *map[string]model.Note // Slug -> Note
+	Tree     *engine.TreeNode       // Tree structure of notes
 	rs       template.Resource
 	cfg      *config.Config
 }
@@ -28,7 +28,9 @@ type Server struct {
 func (s Server) getHomeNoteSlug() string {
 	// Priority 1: Check HOME_NOTE_SLUG configuration
 	if s.cfg.HomeNoteSlug != "" {
-		if _, exists := s.NotesMap[s.cfg.HomeNoteSlug]; exists {
+		notesMap := *s.NotesMap
+
+		if _, exists := notesMap[s.cfg.HomeNoteSlug]; exists {
 			return s.cfg.HomeNoteSlug
 		}
 	}
@@ -62,30 +64,34 @@ func (s Server) Start() error {
 	// Serve static files at /static
 	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
 
-	fuego.Get(server, "/{slug...}", func(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
-		slug := ctx.PathParam("slug")
-		searchQuery := ctx.QueryParam("search")
-
-		if slug == "" {
-			slug = s.getHomeNoteSlug()
-		}
-
-		note, ok := s.NotesMap[slug]
-		if !ok {
-			slog.Info("Note not found", "slug", slug)
-			return s.rs.NoteWithList(nil, searchQuery)
-		}
-
-		// Additional security check: ensure note is public
-		if !s.cfg.PublicByDefault && !note.IsPublic {
-			slog.Info("Private note access denied", "slug", slug)
-			return s.rs.NoteWithList(nil, searchQuery)
-		}
-
-		return s.rs.NoteWithList(&note, searchQuery)
-	},
+	fuego.Get(server, "/{slug...}", s.getNote,
 		option.Query("search", "Search query to filter notes by title"),
 	)
 
 	return server.Run()
+}
+
+func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+	slug := ctx.PathParam("slug")
+	searchQuery := ctx.QueryParam("search")
+
+	if slug == "" {
+		slug = s.getHomeNoteSlug()
+	}
+
+	notesMap := *s.NotesMap
+
+	note, ok := notesMap[slug]
+	if !ok {
+		slog.Info("Note not found", "slug", slug)
+		return s.rs.NoteWithList(nil, searchQuery)
+	}
+
+	// Additional security check: ensure note is public
+	if !s.cfg.PublicByDefault && !note.IsPublic {
+		slog.Info("Private note access denied", "slug", slug)
+		return s.rs.NoteWithList(nil, searchQuery)
+	}
+
+	return s.rs.NoteWithList(&note, searchQuery)
 }
