@@ -15,6 +15,9 @@ func (rs Resource) Layout(node ...g.Node) g.Node {
 	}
 
 	siteIcon := os.Getenv("SITE_ICON")
+	if siteIcon == "" {
+		siteIcon = "/static/pluie.webp"
+	}
 	siteDescription := os.Getenv("SITE_DESCRIPTION")
 
 	return HTML(
@@ -31,9 +34,8 @@ func (rs Resource) Layout(node ...g.Node) g.Node {
 			g.If(siteDescription != "",
 				Meta(Name("description"), Content(siteDescription)),
 			),
-			g.If(siteIcon != "",
-				Meta(Name("msapplication-TileImage"), Content(siteIcon)),
-			),
+			Meta(Name("msapplication-TileImage"), Content(siteIcon)),
+
 			Link(Rel("stylesheet"), Type("text/css"), Href("/static/tailwind.min.css")),
 			Script(Defer(), Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js")),
 			Script(Defer(), Src("/static/app.js")),

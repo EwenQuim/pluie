@@ -27,7 +27,7 @@ func Load() *Config {
 	cfg := &Config{
 		Port:                getEnvOrDefault("PORT", "9999"),
 		SiteTitle:           getEnvOrDefault("SITE_TITLE", "Pluie"),
-		SiteIcon:            os.Getenv("SITE_ICON"),
+		SiteIcon:            getEnvOrDefault("SITE_ICON", "/static/pluie.webp"),
 		SiteDescription:     os.Getenv("SITE_DESCRIPTION"),
 		PublicByDefault:     getEnvBool("PUBLIC_BY_DEFAULT", false),
 		HomeNoteSlug:        getEnvOrDefault("HOME_NOTE_SLUG", "Index"),

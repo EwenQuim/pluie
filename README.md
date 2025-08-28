@@ -1,5 +1,7 @@
 # Pluie 🌧️ - Modern Markdown Wiki Server
 
+![](./static/pluie.webp)
+
 Pluie is a lightning-fast, privacy-focused markdown wiki server built in Go that transforms your Obsidian vault into a beautiful, searchable website. Designed for simplicity and performance, Pluie offers the perfect balance between powerful features and ease of use.
 
 ## ✨ Core Features
