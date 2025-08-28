@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -126,8 +127,8 @@ func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetada
 	// Remove comment blocks between %% markers before displaying
 	finalContent = engine.RemoveCommentBlocks(finalContent)
 
-	// Extract title from frontmatter or filename
-	title := e.extractTitle(fileName, metadata)
+	// Extract title from H1 content, frontmatter, or filename
+	title := e.extractTitle(fileName, metadata, &finalContent)
 
 	note := model.Note{
 		Title:    title,
@@ -142,15 +143,53 @@ func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetada
 	return &note
 }
 
-// extractTitle extracts the title from frontmatter or falls back to filename
-func (e Explorer) extractTitle(fileName string, metadata map[string]any) string {
-	title := strings.TrimSuffix(fileName, ".md")
-	if frontmatterTitle, exists := metadata["title"]; exists {
-		if titleStr, ok := frontmatterTitle.(string); ok && titleStr != "" {
-			title = titleStr
+// extractH1TitleFromContent extracts the first H1 heading from markdown content and removes it
+// Returns the extracted title and the content with the H1 removed
+func extractH1TitleFromContent(content string) (title string, modifiedContent string) {
+	h1Regex := regexp.MustCompile(`^#\s+(.+)$`)
+
+	lines := strings.Split(content, "\n")
+	resultLines := make([]string, 0, len(lines))
+	titleFound := false
+
+	for _, line := range lines {
+		// Check if this is an H1 heading at the start of the line (no indentation)
+		if !titleFound && h1Regex.MatchString(line) {
+			matches := h1Regex.FindStringSubmatch(line)
+			if len(matches) > 1 {
+				title = strings.TrimSpace(matches[1])
+				titleFound = true
+				// Skip adding this line to the result (remove it from content)
+				continue
+			}
+		}
+
+		resultLines = append(resultLines, line)
+	}
+
+	modifiedContent = strings.Join(resultLines, "\n")
+	return title, modifiedContent
+}
+
+// extractTitle extracts the title from H1 content, frontmatter, or falls back to filename
+func (e Explorer) extractTitle(fileName string, metadata map[string]any, content *string) string {
+	// First, check for H1 in content and remove it if found
+	if content != nil {
+		if h1Title, modifiedContent := extractH1TitleFromContent(*content); h1Title != "" {
+			*content = modifiedContent
+			return h1Title
 		}
 	}
-	return title
+
+	// Second, check frontmatter
+	if frontmatterTitle, exists := metadata["title"]; exists {
+		if titleStr, ok := frontmatterTitle.(string); ok && titleStr != "" {
+			return titleStr
+		}
+	}
+
+	// Finally, fall back to filename
+	return strings.TrimSuffix(fileName, ".md")
 }
 
 // filterPublicNotes filters notes based on public/private visibility

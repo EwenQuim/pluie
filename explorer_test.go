@@ -147,8 +147,8 @@ func TestFrontmatterTitleOverride(t *testing.T) {
 		},
 		{
 			slug:          "default_note",
-			expectedTitle: "default_note",
-			description:   "should use filename when no frontmatter title exists",
+			expectedTitle: "Default Note",
+			description:   "should use H1 title from content when no frontmatter title exists",
 		},
 	}
 
