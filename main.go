@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -43,16 +46,46 @@ func main() {
 	// Build tree structure with public notes only
 	tree := engine.BuildTree(publicNotes)
 
-	err = Server{
+	server := &Server{
 		NotesMap: &notesMap,
 		Tree:     tree,
 		rs: template.Resource{
 			Tree: tree,
 		},
 		cfg: cfg,
-	}.Start()
-	if err != nil {
-		panic(err)
 	}
 
+	// Create and start file watcher
+	watcher, err := NewFileWatcher(*path, server, cfg)
+	if err != nil {
+		slog.Error("Failed to create file watcher", "error", err)
+		return
+	}
+
+	err = watcher.Start()
+	if err != nil {
+		slog.Error("Failed to start file watcher", "error", err)
+		return
+	}
+	defer watcher.Stop()
+
+	// Set up graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Start()
+	}()
+
+	// Wait for either an error or a shutdown signal
+	select {
+	case err := <-errCh:
+		if err != nil {
+			slog.Error("Server error", "error", err)
+		}
+	case sig := <-sigCh:
+		slog.Info("Shutting down", "signal", sig)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"sync"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -20,6 +21,7 @@ type Server struct {
 	Tree     *engine.TreeNode       // Tree structure of notes
 	rs       template.Resource
 	cfg      *config.Config
+	mutex    sync.RWMutex // Protects data updates
 }
 
 // getHomeNoteSlug determines the home note slug based on priority:
@@ -28,7 +30,9 @@ type Server struct {
 func (s Server) getHomeNoteSlug() string {
 	// Priority 1: Check HOME_NOTE_SLUG configuration
 	if s.cfg.HomeNoteSlug != "" {
+		s.mutex.RLock()
 		notesMap := *s.NotesMap
+		s.mutex.RUnlock()
 
 		if _, exists := notesMap[s.cfg.HomeNoteSlug]; exists {
 			return s.cfg.HomeNoteSlug
@@ -36,9 +40,13 @@ func (s Server) getHomeNoteSlug() string {
 	}
 
 	// Priority 2: First note in alphabetical order
-	if s.Tree != nil {
+	s.mutex.RLock()
+	tree := s.Tree
+	s.mutex.RUnlock()
+	
+	if tree != nil {
 		// Get all notes from tree and sort by slug
-		notes := engine.GetAllNotesFromTree(s.Tree)
+		notes := engine.GetAllNotesFromTree(tree)
 		if len(notes) > 0 {
 			sort.Slice(notes, func(i, j int) bool {
 				return notes[i].Slug < notes[j].Slug
@@ -79,7 +87,10 @@ func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug = s.getHomeNoteSlug()
 	}
 
+	// Use read lock for concurrent access
+	s.mutex.RLock()
 	notesMap := *s.NotesMap
+	s.mutex.RUnlock()
 
 	note, ok := notesMap[slug]
 	if !ok {
@@ -94,4 +105,16 @@ func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	}
 
 	return s.rs.NoteWithList(&note, searchQuery)
+}
+
+// UpdateData atomically updates the server's data structures
+func (s *Server) UpdateData(notesMap *map[string]model.Note, tree *engine.TreeNode) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	
+	s.NotesMap = notesMap
+	s.Tree = tree
+	s.rs = template.Resource{
+		Tree: tree,
+	}
 }

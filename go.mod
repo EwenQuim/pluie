@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/adrg/frontmatter v0.2.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-fuego/fuego v0.18.8
 	github.com/go-fuego/fuego/extra/markdown v0.0.0-20250807024229-a42f8ffe3588
 	github.com/maragudk/gomponents v0.22.0
