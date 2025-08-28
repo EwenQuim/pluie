@@ -470,6 +470,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	siteDescription := os.Getenv("SITE_DESCRIPTION")
 
 	return rs.Layout(
+		note,
 		Div(
 			Class("flex gap-2 h-screen w-screen justify-between"),
 			// Left sidebar with notes list
