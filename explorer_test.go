@@ -23,6 +23,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 				"public_folder/folder_note":  true,  // folder metadata public: true
 				"private_folder/secret_note": false, // folder metadata public: false
 				"metadata_wikilinks_test":    true,  // explicit public: true
+				"empty_elements_test":        false, // explicit public: false
 			},
 		},
 		{
@@ -35,6 +36,7 @@ func TestExplorerGetFolderNotes(t *testing.T) {
 				"public_folder/folder_note":  true,  // folder metadata public: true
 				"private_folder/secret_note": false, // folder metadata public: false
 				"metadata_wikilinks_test":    true,  // explicit public: true
+				"empty_elements_test":        false, // explicit public: false
 			},
 		},
 	}

@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/EwenQuim/pluie/model"
 )
@@ -14,6 +16,11 @@ type TagIndex map[string][]model.Note
 // 1. Metadata "tags" field (array of strings)
 // 2. Free text with syntax #[A-Za-z/-]+
 func BuildTagIndex(notes []model.Note) TagIndex {
+	start := time.Now()
+	defer func() {
+		slog.Info("Tag Index built", "in", time.Since(start).String())
+	}()
+
 	tagIndex := make(TagIndex)
 
 	for _, note := range notes {

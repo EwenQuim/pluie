@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"log/slog"
 	"os"
 	"path"
@@ -114,14 +115,9 @@ func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetada
 	}
 
 	// Parse frontmatter
-	var metadata map[string]any
-	parsedContent, err := frontmatter.Parse(strings.NewReader(string(contentBytes)), &metadata)
-	var finalContent string
+	metadata, finalContent, err := ParseMetadataAndContent(contentBytes)
 	if err != nil {
-		finalContent = string(contentBytes)
-		metadata = make(map[string]any)
-	} else {
-		finalContent = string(parsedContent)
+		slog.Warn("Error parsing frontmatter", "file", path.Join(currentPath, fileName), "error", err)
 	}
 
 	// Remove comment blocks between %% markers before displaying
@@ -141,6 +137,41 @@ func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetada
 	note.DetermineIsPublic(folderMetadata)
 
 	return &note
+}
+
+// ParseMetadataAndContent parses the frontmatter metadata and returns it along with the content
+func ParseMetadataAndContent(content []byte) (map[string]any, string, error) {
+	var metadata map[string]any
+	parsedContent, err := frontmatter.Parse(bytes.NewReader(content), &metadata)
+	var finalContent string
+	if err != nil {
+		finalContent = string(content)
+		metadata = make(map[string]any)
+		return metadata, finalContent, err
+	}
+
+	for k, v := range metadata {
+		switch v := v.(type) {
+		case []any:
+			// Remove empty elements from lists
+			cleanedList := make([]any, 0, len(v))
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					trimmed := strings.TrimSpace(str)
+					if trimmed != "" {
+						cleanedList = append(cleanedList, trimmed)
+					}
+				} else if item != nil {
+					cleanedList = append(cleanedList, item)
+				}
+			}
+			metadata[k] = cleanedList
+		default:
+			// Do nothing for other types
+		}
+	}
+
+	return metadata, string(parsedContent), nil
 }
 
 // extractH1TitleFromContent extracts the first H1 heading from markdown content and removes it

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log/slog"
+	"time"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -22,11 +23,13 @@ func main() {
 		BasePath: *path,
 	}
 
+	start := time.Now()
 	notes, err := explorer.getFolderNotes("")
 	if err != nil {
 		slog.Error("Error exploring folder", "error", err)
 		return
 	}
+	slog.Info("Processed files", "in", time.Since(start).String())
 
 	// Filter out private notes
 	publicNotes := filterPublicNotes(notes, cfg.PublicByDefault)
