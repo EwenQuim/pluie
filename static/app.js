@@ -191,24 +191,88 @@ function throttle(func, wait) {
 	};
 }
 
+// Mobile sidebar functionality
+function toggleMobileSidebar() {
+	const sidebar = document.getElementById('mobile-sidebar');
+	const overlay = document.getElementById('mobile-sidebar-overlay');
+	const line1 = document.getElementById('burger-line-1');
+	const line2 = document.getElementById('burger-line-2');
+	const line3 = document.getElementById('burger-line-3');
+
+	if (sidebar && overlay) {
+		const isHidden = sidebar.classList.contains('-translate-x-full');
+
+		if (isHidden) {
+			// Show sidebar
+			sidebar.classList.remove('-translate-x-full');
+			sidebar.classList.add('translate-x-0');
+			overlay.classList.remove('opacity-0', 'invisible');
+			overlay.classList.add('opacity-100', 'visible');
+
+			// Animate burger menu to X
+			if (line1 && line2 && line3) {
+				line1.classList.add('rotate-45', 'translate-y-2');
+				line2.classList.add('opacity-0');
+				line3.classList.add('-rotate-45', '-translate-y-2');
+			}
+
+			// Prevent body scroll when sidebar is open
+			document.body.style.overflow = 'hidden';
+		} else {
+			// Hide sidebar
+			closeMobileSidebar();
+		}
+	}
+}
+
+function closeMobileSidebar() {
+	const sidebar = document.getElementById('mobile-sidebar');
+	const overlay = document.getElementById('mobile-sidebar-overlay');
+	const line1 = document.getElementById('burger-line-1');
+	const line2 = document.getElementById('burger-line-2');
+	const line3 = document.getElementById('burger-line-3');
+
+	if (sidebar && overlay) {
+		sidebar.classList.remove('translate-x-0');
+		sidebar.classList.add('-translate-x-full');
+		overlay.classList.remove('opacity-100', 'visible');
+		overlay.classList.add('opacity-0', 'invisible');
+
+		// Reset burger menu animation
+		if (line1 && line2 && line3) {
+			line1.classList.remove('rotate-45', 'translate-y-2');
+			line2.classList.remove('opacity-0');
+			line3.classList.remove('-rotate-45', '-translate-y-2');
+		}
+
+		// Restore body scroll
+		document.body.style.overflow = '';
+	}
+}
+
+// Close mobile sidebar when clicking on a link (for better UX)
+function handleMobileLinkClick() {
+	// Only close on mobile devices
+	if (window.innerWidth < 768) {
+		closeMobileSidebar();
+	}
+}
+
 // YAML front matter toggle functionality
 function toggleYamlFrontmatter() {
 	const yamlContent = document.getElementById('yaml-content');
-	const yamlChevron = document.getElementById('yaml-chevron');
 	const yamlToggleBtn = document.getElementById('yaml-toggle-btn');
 
-	if (yamlContent && yamlChevron && yamlToggleBtn) {
+	if (yamlContent && yamlToggleBtn) {
 		const isCurrentlyHidden = yamlContent.style.display === 'none';
 
 		if (isCurrentlyHidden) {
 			// Show YAML content
 			yamlContent.style.display = 'block';
-			yamlChevron.textContent = '▼';
 			yamlToggleBtn.querySelector('span:last-child').textContent = 'Hide';
 		} else {
 			// Hide YAML content
 			yamlContent.style.display = 'none';
-			yamlChevron.textContent = '▶';
 			yamlToggleBtn.querySelector('span:last-child').textContent = 'Show';
 		}
 
@@ -220,19 +284,16 @@ function toggleYamlFrontmatter() {
 // Restore YAML front matter state from localStorage
 function restoreYamlFrontmatterState() {
 	const yamlContent = document.getElementById('yaml-content');
-	const yamlChevron = document.getElementById('yaml-chevron');
 	const yamlToggleBtn = document.getElementById('yaml-toggle-btn');
 
-	if (yamlContent && yamlChevron && yamlToggleBtn) {
+	if (yamlContent && yamlToggleBtn) {
 		const isOpen = localStorage.getItem('yamlFrontmatterOpen') === 'true';
 
 		if (isOpen) {
 			yamlContent.style.display = 'block';
-			yamlChevron.textContent = '▼';
 			yamlToggleBtn.querySelector('span:last-child').textContent = 'Hide';
 		} else {
 			yamlContent.style.display = 'none';
-			yamlChevron.textContent = '▶';
 			yamlToggleBtn.querySelector('span:last-child').textContent = 'Show';
 		}
 	}

@@ -105,6 +105,7 @@ func (rs Resource) renderNoteNode(node *engine.TreeNode, currentSlug string) gom
 			Href("/"+node.Path),
 			Class(linkClass),
 			g.Attr("hx-boost", "true"),
+			g.Attr("onclick", "handleMobileLinkClick()"),
 			g.Text(node.Name),
 		),
 	)
@@ -273,13 +274,13 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 // renderYamlProperty renders a YAML property with appropriate HTML based on its type
 func renderYamlProperty(key string, value any) gomponents.Node {
 	return Div(
-		Class("flex flex-col sm:flex-row sm:items-start items-center py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-150 hover:bg-gray-50"),
+		Class("flex flex-row items-center py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-150 hover:bg-gray-50"),
 		Dt(
 			Class("text-sm font-medium text-gray-700 ml-4 mb-2 sm:mb-0 sm:w-1/3"),
 			g.Text(key),
 		),
 		Dd(
-			Class("sm:w-2/3 mr-4 sm:mr-0"),
+			Class("sm:w-2/3 mr-4 sm:mr-2"),
 			renderYamlValue(value),
 		),
 	)
@@ -486,10 +487,49 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	return rs.Layout(
 		note,
 		Div(
-			Class("flex gap-2 h-screen w-screen justify-between"),
+			Class("flex flex-col md:flex-row md:gap-2 h-screen w-screen justify-between"),
+			// Mobile top bar (hidden on desktop)
+			Div(
+				Class("md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between z-50"),
+				// Site title and icon
+				Div(
+					Class("flex items-center gap-3"),
+					g.If(siteIcon != "",
+						Img(
+							Src(siteIcon),
+							Alt("Site Icon"),
+							Class("w-6 h-6 object-contain rounded-md"),
+						),
+					),
+					H1(
+						Class("text-lg font-bold text-gray-900"),
+						g.Text(siteTitle),
+					),
+				),
+				// Burger menu button
+				Button(
+					Class("p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"),
+					ID("burger-menu"),
+					g.Attr("onclick", "toggleMobileSidebar()"),
+					g.Attr("aria-label", "Toggle navigation menu"),
+					Div(
+						Class("w-6 h-6 flex flex-col justify-center items-center space-y-1"),
+						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-1")),
+						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-2")),
+						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-3")),
+					),
+				),
+			),
+			// Mobile sidebar overlay
+			Div(
+				Class("fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden opacity-0 invisible transition-all duration-300"),
+				ID("mobile-sidebar-overlay"),
+				g.Attr("onclick", "closeMobileSidebar()"),
+			),
 			// Left sidebar with notes list
 			Div(
-				Class("w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full"),
+				Class("w-3/4 md:w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full md:relative fixed top-0 left-0 z-50 md:z-auto -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out"),
+				ID("mobile-sidebar"),
 				// Site header with title and icon
 				Div(
 					Class("mb-6"),
@@ -606,7 +646,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 			),
 			// Main content area with the note
 			Div(
-				Class("flex-1 container overflow-y-auto p-4 px-8"),
+				Class("flex-1 container overflow-y-auto p-4 md:px-8"),
 				H1(
 					Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
 					g.If(title != "", g.Text(title)),
@@ -628,11 +668,6 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 								Class("flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"),
 								g.Attr("onclick", "toggleYamlFrontmatter()"),
 								g.Attr("id", "yaml-toggle-btn"),
-								Span(
-									Class("transition-transform duration-200"),
-									g.Attr("id", "yaml-chevron"),
-									g.Text("▶"),
-								),
 								Span(g.Text("Show")),
 							),
 						),
