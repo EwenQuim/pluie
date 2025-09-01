@@ -2,15 +2,11 @@ package engine
 
 import (
 	"log/slog"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/EwenQuim/pluie/model"
 )
-
-// wikiLinkRegex matches [[linktitle]] and [[linktitle|displayname]] patterns
-var wikiLinkRegex = regexp.MustCompile(`\[\[([^\]]*)\]\]`)
 
 // BuildBackreferences analyzes all notes and populates the ReferencedBy field
 // for each note based on wikilinks found in other notes' content

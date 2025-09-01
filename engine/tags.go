@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/EwenQuim/pluie/model"
@@ -79,9 +78,7 @@ func extractFreeTextTags(content string) []string {
 
 	// Regular expression to match hashtags: #[A-Za-z/-]+
 	// This matches # followed by one or more letters, forward slashes, or hyphens
-	re := regexp.MustCompile(`#([A-Za-z/-]+)`)
-
-	matches := re.FindAllStringSubmatch(content, -1)
+	matches := hashtagRegex.FindAllStringSubmatch(content, -1)
 	for _, match := range matches {
 		if len(match) > 1 {
 			// match[1] contains the captured group (tag without #)

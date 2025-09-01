@@ -8,12 +8,19 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
+// Package-level regex variables to avoid duplication
+var (
+	commentBlockRegex = regexp.MustCompile(`(?s)%%.*?%%`)
+	markdownLinkRegex = regexp.MustCompile(`\[([^\]]*)\]\(([^)]+?)\.md(\)|[?#][^)]*\))`)
+	wikiLinkRegex     = regexp.MustCompile(`\[\[([^\]]*)\]\]`)
+	hashtagRegex      = regexp.MustCompile(`#([A-Za-z/-]+)`)
+)
+
 // RemoveCommentBlocks removes all content between %% markers (inclusive)
 func RemoveCommentBlocks(content string) string {
 	// Regular expression to match content between %% markers (including the markers)
 	// The (?s) flag enables dot-all mode, making . match newlines as well
-	re := regexp.MustCompile(`(?s)%%.*?%%`)
-	return re.ReplaceAllString(content, "")
+	return commentBlockRegex.ReplaceAllString(content, "")
 }
 
 // ParseWikiLinksInMetadata processes wikilinks in metadata values (strings and lists)
@@ -99,11 +106,9 @@ func parseWikiLinksInValue(value any, tree *TreeNode) any {
 func ProcessMarkdownLinks(content string) string {
 	// Regular expression to match [text](link.md) patterns and remove .md extension
 	// This handles cases with query parameters and anchors after .md
-	re := regexp.MustCompile(`\[([^\]]*)\]\(([^)]+?)\.md(\)|[?#][^)]*\))`)
-
-	return re.ReplaceAllStringFunc(content, func(match string) string {
+	return markdownLinkRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract parts using the regex
-		parts := re.FindStringSubmatch(match)
+		parts := markdownLinkRegex.FindStringSubmatch(match)
 		if len(parts) != 4 {
 			return match
 		}
@@ -121,9 +126,7 @@ func ProcessMarkdownLinks(content string) string {
 func ParseWikiLinks(content string, tree *TreeNode) string {
 	// Regular expression to match [[linktitle]] and [[linktitle|displayname]] patterns
 	// Allow empty content between brackets
-	re := regexp.MustCompile(`\[\[([^\]]*)\]\]`)
-
-	return re.ReplaceAllStringFunc(content, func(match string) string {
+	return wikiLinkRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Check if this match is part of a triple bracket pattern [[[...]]]
 		matchStart := strings.Index(content, match)
 		if matchStart > 0 && content[matchStart-1] == '[' {
@@ -179,9 +182,7 @@ func ParseWikiLinks(content string, tree *TreeNode) string {
 func ParseHashtagLinks(content string) string {
 	// Regular expression to match hashtags: #[A-Za-z/-]+
 	// This matches # followed by one or more letters, forward slashes, or hyphens
-	re := regexp.MustCompile(`#([A-Za-z/-]+)`)
-
-	return re.ReplaceAllStringFunc(content, func(match string) string {
+	return hashtagRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract the tag without the # symbol
 		tag := strings.TrimPrefix(match, "#")
 
