@@ -461,6 +461,8 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	// Parse wiki-style links before markdown processing
 	parsedContent := engine.ParseWikiLinks(string(content), rs.Tree)
 
+	parsedContent = engine.ProcessMarkdownLinks(parsedContent)
+
 	// Remove Obsidian callout notations from the content
 	parsedContent = removeObsidianCallouts(parsedContent)
 

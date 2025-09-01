@@ -55,6 +55,28 @@ func parseWikiLinksInValue(value any, tree *TreeNode) any {
 	}
 }
 
+// ProcessMarkdownLinks removes .md extensions from markdown links before rendering
+func ProcessMarkdownLinks(content string) string {
+	// Regular expression to match [text](link.md) patterns and remove .md extension
+	// This handles cases with query parameters and anchors after .md
+	re := regexp.MustCompile(`\[([^\]]*)\]\(([^)]+?)\.md(\)|[?#][^)]*\))`)
+
+	return re.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract parts using the regex
+		parts := re.FindStringSubmatch(match)
+		if len(parts) != 4 {
+			return match
+		}
+
+		linkText := parts[1]
+		pathPart := parts[2]
+		suffix := parts[3]
+
+		// Return the reconstructed link without .md
+		return fmt.Sprintf("[%s](%s%s", linkText, pathPart, suffix)
+	})
+}
+
 // ParseWikiLinks transforms [[linktitle]] and [[linktitle|displayname]] into [title](link) format
 func ParseWikiLinks(content string, tree *TreeNode) string {
 	// Regular expression to match [[linktitle]] and [[linktitle|displayname]] patterns

@@ -266,6 +266,89 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 	}
 }
 
+func TestProcessMarkdownLinks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Single markdown link with .md extension",
+			input:    "Check out [Blackmailware](/ecriture/nouvelles/Blackmailware.md) for details.",
+			expected: "Check out [Blackmailware](/ecriture/nouvelles/Blackmailware) for details.",
+		},
+		{
+			name:     "Multiple markdown links with .md extensions",
+			input:    "See [Note 1](/path/note1.md) and [Note 2](/path/note2.md).",
+			expected: "See [Note 1](/path/note1) and [Note 2](/path/note2).",
+		},
+		{
+			name:     "Markdown link without .md extension",
+			input:    "Visit [Homepage](/index) for more info.",
+			expected: "Visit [Homepage](/index) for more info.",
+		},
+		{
+			name:     "Mixed links with and without .md extensions",
+			input:    "Read [Article](/articles/article.md) and visit [Home](/home).",
+			expected: "Read [Article](/articles/article) and visit [Home](/home).",
+		},
+		{
+			name:     "Empty link text",
+			input:    "Check []( /path/file.md) here.",
+			expected: "Check []( /path/file) here.",
+		},
+		{
+			name:     "Link with special characters in text",
+			input:    "See [Special & Characters!](/path/file.md) for details.",
+			expected: "See [Special & Characters!](/path/file) for details.",
+		},
+		{
+			name:     "Link with query parameters and .md extension",
+			input:    "Visit [Page](/path/page.md?param=value) for info.",
+			expected: "Visit [Page](/path/page?param=value) for info.",
+		},
+		{
+			name:     "Link with anchor and .md extension",
+			input:    "Go to [Section](/path/page.md#section) directly.",
+			expected: "Go to [Section](/path/page#section) directly.",
+		},
+		{
+			name:     "No markdown links in content",
+			input:    "This is just regular text with no links.",
+			expected: "This is just regular text with no links.",
+		},
+		{
+			name:     "Empty content",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "Nested paths with .md extension",
+			input:    "Read [Deep Note](/folder/subfolder/deep-note.md) here.",
+			expected: "Read [Deep Note](/folder/subfolder/deep-note) here.",
+		},
+		{
+			name:     "Link with .md in the middle of filename",
+			input:    "See [File](/path/file.md.backup.md) for backup.",
+			expected: "See [File](/path/file.md.backup) for backup.",
+		},
+		{
+			name:     "Multiple .md extensions in path",
+			input:    "Check [Note](/folder.md/note.md) here.",
+			expected: "Check [Note](/folder.md/note) here.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.ProcessMarkdownLinks(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessMarkdownLinks() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
 func BenchmarkParseWikiLinks(b *testing.B) {
 	notes := []model.Note{
 		{Title: "Test Note", Slug: "test-note"},

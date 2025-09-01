@@ -30,7 +30,7 @@ func (rs Resource) Layout(note *model.Note, node ...g.Node) g.Node {
 		Head(
 			Meta(Charset("utf-8")),
 			Meta(Name("viewport"), Content("width=device-width, initial-scale=1")),
-			Title(seoData.PageTitle),
+			TitleEl(g.Text(seoData.PageTitle)),
 			// Add favicon if icon is provided
 			g.If(siteIcon != "",
 				Link(Rel("icon"), Href(siteIcon)),
