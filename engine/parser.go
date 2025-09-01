@@ -29,6 +29,46 @@ func ParseWikiLinksInMetadata(metadata map[string]any, tree *TreeNode) map[strin
 	return result
 }
 
+// ParseTagLinksInMetadata processes tags in metadata and converts them to clickable links
+func ParseTagLinksInMetadata(metadata map[string]any) map[string]any {
+	if metadata == nil {
+		return metadata
+	}
+
+	result := make(map[string]any)
+	for key, value := range metadata {
+		if key == "tags" {
+			result[key] = parseTagLinksInValue(value)
+		} else {
+			result[key] = value
+		}
+	}
+	return result
+}
+
+// parseTagLinksInValue converts tag values to clickable links
+func parseTagLinksInValue(value any) any {
+	switch v := value.(type) {
+	case string:
+		// Convert single tag to link
+		return fmt.Sprintf("[#%s](/-/tag/%s)", v, v)
+	case []interface{}:
+		// Convert array of tags to links
+		result := make([]interface{}, len(v))
+		for i, item := range v {
+			if tagStr, ok := item.(string); ok {
+				result[i] = fmt.Sprintf("[#%s](/-/tag/%s)", tagStr, tagStr)
+			} else {
+				result[i] = item
+			}
+		}
+		return result
+	default:
+		// Return other types unchanged
+		return value
+	}
+}
+
 // parseWikiLinksInValue recursively processes wikilinks in a metadata value
 func parseWikiLinksInValue(value any, tree *TreeNode) any {
 	switch v := value.(type) {
@@ -132,5 +172,20 @@ func ParseWikiLinks(content string, tree *TreeNode) string {
 		// If no matching note found, return the display name without brackets
 		// This makes it clear that the link is broken
 		return displayName
+	})
+}
+
+// ParseHashtagLinks converts hashtags in content to clickable links
+func ParseHashtagLinks(content string) string {
+	// Regular expression to match hashtags: #[A-Za-z/-]+
+	// This matches # followed by one or more letters, forward slashes, or hyphens
+	re := regexp.MustCompile(`#([A-Za-z/-]+)`)
+
+	return re.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract the tag without the # symbol
+		tag := strings.TrimPrefix(match, "#")
+
+		// Return markdown link format [#tag](/-/tag/tag)
+		return fmt.Sprintf("[#%s](/-/tag/%s)", tag, tag)
 	})
 }

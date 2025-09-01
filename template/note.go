@@ -450,6 +450,8 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	if note != nil {
 		// Parse wikilinks in metadata before using it
 		matter = engine.ParseWikiLinksInMetadata(note.Metadata, rs.Tree)
+		// Also parse tag links in metadata
+		matter = engine.ParseTagLinksInMetadata(matter)
 		slug = note.Slug
 		title = note.Title
 		referencedBy = note.ReferencedBy
@@ -461,6 +463,9 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	// Parse wiki-style links before markdown processing
 	parsedContent := engine.ParseWikiLinks(string(content), rs.Tree)
+
+	// Parse hashtags to clickable links
+	parsedContent = engine.ParseHashtagLinks(parsedContent)
 
 	parsedContent = engine.ProcessMarkdownLinks(parsedContent)
 
@@ -754,4 +759,212 @@ func countNotesInTree(node *engine.TreeNode) int {
 	}
 
 	return count
+}
+
+// TagList displays all notes that contain a specific tag
+func (rs Resource) TagList(tag string, notes []model.Note) (gomponents.Node, error) {
+	// Get site title, icon, and description from environment variables
+	siteTitle := os.Getenv("SITE_TITLE")
+	if siteTitle == "" {
+		siteTitle = "Pluie"
+	}
+	siteIcon := os.Getenv("SITE_ICON")
+	siteDescription := os.Getenv("SITE_DESCRIPTION")
+
+	var title string
+	var content gomponents.Node
+
+	if tag == "" {
+		title = "Tag not found"
+		content = Div(
+			Class("prose max-w-none"),
+			P(g.Text("No tag specified.")),
+		)
+	} else if len(notes) == 0 {
+		title = fmt.Sprintf("Tag: #%s", tag)
+		content = Div(
+			Class("prose max-w-none"),
+			P(g.Textf("No notes found with tag #%s.", tag)),
+		)
+	} else {
+		title = fmt.Sprintf("Tag: #%s (%d notes)", tag, len(notes))
+		content = Div(
+			Class("prose max-w-none"),
+			P(
+				Class("text-gray-600 mb-6"),
+				g.Textf("Found %d notes with tag #%s:", len(notes), tag),
+			),
+			Div(
+				Class("grid gap-4 md:grid-cols-2 lg:grid-cols-3"),
+				g.Group(g.Map(notes, func(note model.Note) gomponents.Node {
+					return rs.renderNoteCard(note)
+				})),
+			),
+		)
+	}
+
+	return rs.Layout(
+		nil, // No specific note for layout
+		Div(
+			Class("flex flex-col md:flex-row md:gap-2 h-screen w-screen justify-between"),
+			// Mobile top bar (hidden on desktop)
+			Div(
+				Class("md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between z-50"),
+				// Site title and icon
+				Div(
+					Class("flex items-center gap-3"),
+					g.If(siteIcon != "",
+						Img(
+							Src(siteIcon),
+							Alt("Site Icon"),
+							Class("w-6 h-6 object-contain rounded-md"),
+						),
+					),
+					H1(
+						Class("text-lg font-bold text-gray-900"),
+						g.Text(siteTitle),
+					),
+				),
+				// Burger menu button
+				Button(
+					Class("p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"),
+					ID("burger-menu"),
+					g.Attr("onclick", "toggleMobileSidebar()"),
+					g.Attr("aria-label", "Toggle navigation menu"),
+					Div(
+						Class("w-6 h-6 flex flex-col justify-center items-center space-y-1"),
+						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-1")),
+						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-2")),
+						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-3")),
+					),
+				),
+			),
+			// Mobile sidebar overlay
+			Div(
+				Class("fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden opacity-0 invisible transition-all duration-300"),
+				ID("mobile-sidebar-overlay"),
+				g.Attr("onclick", "closeMobileSidebar()"),
+			),
+			// Left sidebar with notes list
+			Div(
+				Class("w-3/4 md:w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full md:relative fixed top-0 left-0 z-50 md:z-auto -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out"),
+				ID("mobile-sidebar"),
+				// Site header with title and icon
+				Div(
+					Class("mb-6"),
+					Div(
+						Class("flex items-center gap-3 mb-2"),
+						// Site icon
+						g.If(siteIcon != "",
+							Img(
+								Src(siteIcon),
+								Alt("Site Icon"),
+								Class("w-8 h-8 object-contain rounded-md"),
+							),
+						),
+						// Site title
+						H1(
+							Class("text-xl font-bold text-gray-900"),
+							g.Text(siteTitle),
+						),
+					),
+					// Site description
+					g.If(siteDescription != "",
+						P(
+							Class("text-sm text-gray-500 italic"),
+							g.Text(siteDescription),
+						),
+					),
+				),
+				// Back to home link
+				Div(
+					Class("mb-6"),
+					A(
+						Href("/"),
+						Class("inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"),
+						g.Text("← Back to notes"),
+					),
+				),
+				// Scrollable container for notes tree
+				Div(
+					Class("flex-1 overflow-y-auto"),
+					// Notes tree
+					Div(
+						ID("notes-list"),
+						Class(""),
+						g.If(rs.Tree != nil && len(rs.Tree.Children) > 0,
+							Ul(
+								Class(""),
+								g.Group(g.Map(rs.Tree.Children, func(child *engine.TreeNode) gomponents.Node {
+									return rs.renderTreeNode(child, "")
+								})),
+							),
+						),
+					),
+				),
+			),
+			// Main content area with the tag results
+			Div(
+				Class("flex-1 container overflow-y-auto p-4 md:px-8"),
+				H1(
+					Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
+					g.Text(title),
+				),
+				content,
+			),
+		),
+	), nil
+}
+
+// renderNoteCard renders a single note as a card for the tag list view
+func (rs Resource) renderNoteCard(note model.Note) gomponents.Node {
+	// Extract first few lines of content for description
+	description := extractDescription(note.Content)
+
+	return Div(
+		Class("bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"),
+		A(
+			Href("/"+note.Slug),
+			Class("block"),
+			g.Attr("hx-boost", "true"),
+			H3(
+				Class("text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600"),
+				g.Text(note.Title),
+			),
+			g.If(description != "",
+				P(
+					Class("text-sm text-gray-600 line-clamp-3"),
+					g.Text(description),
+				),
+			),
+		),
+	)
+}
+
+// extractDescription extracts the first few lines of content for a description
+func extractDescription(content string) string {
+	// Remove markdown headers and get first paragraph
+	lines := strings.Split(content, "\n")
+	var description strings.Builder
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Skip empty lines and headers
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Stop at first substantial line and use it as description
+		if len(line) > 10 {
+			description.WriteString(line)
+			break
+		}
+	}
+
+	desc := description.String()
+	// Truncate if too long
+	if len(desc) > 150 {
+		desc = desc[:150] + "..."
+	}
+
+	return desc
 }

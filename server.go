@@ -18,6 +18,7 @@ import (
 type Server struct {
 	NotesMap *map[string]model.Note // Slug -> Note
 	Tree     *engine.TreeNode       // Tree structure of notes
+	TagIndex engine.TagIndex        // Tag -> Notes mapping
 	rs       template.Resource
 	cfg      *config.Config
 }
@@ -64,6 +65,9 @@ func (s Server) Start() error {
 	// Serve static files at /static
 	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
 
+	// Tag route - must be registered before the catch-all route
+	fuego.Get(server, "/-/tag/{tag...}", s.getTag)
+
 	fuego.Get(server, "/{slug...}", s.getNote,
 		option.Query("search", "Search query to filter notes by title"),
 	)
@@ -94,4 +98,23 @@ func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	}
 
 	return s.rs.NoteWithList(&note, searchQuery)
+}
+
+func (s Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+	tag := ctx.PathParam("tag")
+
+	if tag == "" {
+		slog.Info("Empty tag parameter")
+		return s.rs.TagList("", nil)
+	}
+
+	// Get all notes that contain this tag
+	notesWithTag := s.TagIndex.GetNotesWithTag(tag)
+
+	// Also get all tags that contain this tag as a substring
+	relatedTags := s.TagIndex.GetTagsContaining(tag)
+
+	slog.Info("Tag search", "tag", tag, "notes_found", len(notesWithTag), "related_tags", len(relatedTags))
+
+	return s.rs.TagList(tag, notesWithTag)
 }

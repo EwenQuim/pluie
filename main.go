@@ -43,9 +43,13 @@ func main() {
 	// Build tree structure with public notes only
 	tree := engine.BuildTree(publicNotes)
 
+	// Build tag index with public notes only
+	tagIndex := engine.BuildTagIndex(publicNotes)
+
 	err = Server{
 		NotesMap: &notesMap,
 		Tree:     tree,
+		TagIndex: tagIndex,
 		rs: template.Resource{
 			Tree: tree,
 		},
