@@ -14,7 +14,7 @@ func TestBuildTagIndex(t *testing.T) {
 			Slug:    "note-1",
 			Content: "This is a note with #golang and #programming tags.",
 			Metadata: map[string]any{
-				"tags": []interface{}{"web", "backend"},
+				"tags": []any{"web", "backend"},
 			},
 		},
 		{
@@ -30,7 +30,7 @@ func TestBuildTagIndex(t *testing.T) {
 			Slug:    "note-3",
 			Content: "No hashtags here.",
 			Metadata: map[string]any{
-				"tags": []interface{}{"golang", "tutorial"},
+				"tags": []any{"golang", "tutorial"},
 			},
 		},
 	}
@@ -115,7 +115,7 @@ func TestExtractMetadataTags(t *testing.T) {
 	}{
 		{
 			metadata: map[string]any{
-				"tags": []interface{}{"golang", "web", "backend"},
+				"tags": []any{"golang", "web", "backend"},
 			},
 			expected: []string{"golang", "web", "backend"},
 		},
@@ -133,6 +133,12 @@ func TestExtractMetadataTags(t *testing.T) {
 		},
 		{
 			metadata: nil,
+			expected: []string{},
+		},
+		{
+			metadata: map[string]any{
+				"tags": []any{},
+			},
 			expected: []string{},
 		},
 	}
@@ -217,6 +223,36 @@ func TestParseHashtagLinks(t *testing.T) {
 			content:  "# Header\n\nThis is about #golang and #web-dev.\n\n## Another section with #programming",
 			expected: "# Header\n\nThis is about [#golang](/-/tag/golang) and [#web-dev](/-/tag/web-dev).\n\n## Another section with [#programming](/-/tag/programming)",
 		},
+		{
+			name:     "False positive: hashtag in code block",
+			content:  "Other than that, we use the `#MOC` tag for Maps of Content (MOC)",
+			expected: "Other than that, we use the `#MOC` tag for Maps of Content (MOC)",
+		},
+		{
+			name:     "False positive: hashtag in inline code",
+			content:  "Use `#include <stdio.h>` in C programming.",
+			expected: "Use `#include <stdio.h>` in C programming.",
+		},
+		{
+			name:     "False positive: hashtag with character before",
+			content:  "README#What is the Obsidian Hub",
+			expected: "README#What is the Obsidian Hub",
+		},
+		{
+			name:     "False positive: URL fragment",
+			content:  "Visit https://example.com#section for more info.",
+			expected: "Visit https://example.com#section for more info.",
+		},
+		{
+			name:     "Mixed valid and invalid hashtags",
+			content:  "This is a valid #tag but `#code` and URL#fragment should not be parsed.",
+			expected: "This is a valid [#tag](/-/tag/tag) but `#code` and URL#fragment should not be parsed.",
+		},
+		{
+			name:     "Code block with multiple lines",
+			content:  "```\n#define MAX 100\n#include <stdio.h>\n```\nBut this #tag should work.",
+			expected: "```\n#define MAX 100\n#include <stdio.h>\n```\nBut this [#tag](/-/tag/tag) should work.",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -249,10 +285,10 @@ func TestParseTagLinksInMetadata(t *testing.T) {
 		{
 			name: "Array of tags",
 			metadata: map[string]any{
-				"tags": []interface{}{"golang", "programming", "web-dev"},
+				"tags": []any{"golang", "programming", "web-dev"},
 			},
 			expected: map[string]any{
-				"tags": []interface{}{
+				"tags": []any{
 					"[#golang](/-/tag/golang)",
 					"[#programming](/-/tag/programming)",
 					"[#web-dev](/-/tag/web-dev)",
@@ -303,8 +339,8 @@ func TestParseTagLinksInMetadata(t *testing.T) {
 				}
 
 				// Handle array comparison
-				if expectedArray, ok := expectedValue.([]interface{}); ok {
-					actualArray, ok := actualValue.([]interface{})
+				if expectedArray, ok := expectedValue.([]any); ok {
+					actualArray, ok := actualValue.([]any)
 					if !ok {
 						t.Errorf("Expected array for key '%s', got %T", key, actualValue)
 						continue

@@ -179,14 +179,85 @@ func ParseWikiLinks(content string, tree *TreeNode) string {
 }
 
 // ParseHashtagLinks converts hashtags in content to clickable links
+// It avoids false positives by:
+// 1. Ignoring hashtags inside code blocks (both inline ` and multi-line ```)
+// 2. Only matching hashtags preceded by whitespace or start of line
+// 3. Avoiding hashtags that are part of URLs or other text
 func ParseHashtagLinks(content string) string {
-	// Regular expression to match hashtags: #[A-Za-z/-]+
-	// This matches # followed by one or more letters, forward slashes, or hyphens
-	return hashtagRegex.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract the tag without the # symbol
-		tag := strings.TrimPrefix(match, "#")
+	// First, we need to identify code blocks to avoid parsing hashtags inside them
+	codeBlocks := findCodeBlocks(content)
 
-		// Return markdown link format [#tag](/-/tag/tag)
-		return fmt.Sprintf("[#%s](/-/tag/%s)", tag, tag)
+	// Use a regex that matches hashtags preceded by whitespace or start of line
+	// and followed by word boundary or specific characters
+	hashtagRegex := regexp.MustCompile(`(^|\s)(#[A-Za-z/-]+)(\s|$|[^\w/-])`)
+
+	return hashtagRegex.ReplaceAllStringFunc(content, func(match string) string {
+		// Find the position of this match in the original content
+		matchStart := strings.Index(content, match)
+		if matchStart == -1 {
+			return match
+		}
+
+		// Check if this match is inside any code block
+		for _, block := range codeBlocks {
+			if matchStart >= block.start && matchStart < block.end {
+				return match // Don't process hashtags inside code blocks
+			}
+		}
+
+		// Extract the parts using submatch
+		matches := hashtagRegex.FindStringSubmatch(match)
+		if len(matches) < 4 {
+			return match
+		}
+
+		prefix := matches[1]  // whitespace or empty (start of line)
+		hashtag := matches[2] // the hashtag including #
+		suffix := matches[3]  // whitespace, end of line, or delimiter
+
+		tag := strings.TrimPrefix(hashtag, "#")
+
+		// Replace only the hashtag part, preserving prefix and suffix
+		return prefix + fmt.Sprintf("[#%s](/-/tag/%s)", tag, tag) + suffix
 	})
+}
+
+// codeBlock represents a code block's position in the content
+type codeBlock struct {
+	start int
+	end   int
+}
+
+// findCodeBlocks identifies all code blocks (both inline ` and multi-line ```) in the content
+func findCodeBlocks(content string) []codeBlock {
+	var blocks []codeBlock
+
+	// Find multi-line code blocks first (```)
+	multiLineRegex := regexp.MustCompile("```[\\s\\S]*?```")
+	multiLineMatches := multiLineRegex.FindAllStringIndex(content, -1)
+	for _, match := range multiLineMatches {
+		blocks = append(blocks, codeBlock{start: match[0], end: match[1]})
+	}
+
+	// Find inline code blocks (`)
+	// We need to be careful not to match backticks that are inside multi-line blocks
+	inlineRegex := regexp.MustCompile("`[^`\n]*?`")
+	inlineMatches := inlineRegex.FindAllStringIndex(content, -1)
+
+	for _, match := range inlineMatches {
+		// Check if this inline code block is inside a multi-line block
+		insideMultiLine := false
+		for _, multiBlock := range blocks {
+			if match[0] >= multiBlock.start && match[1] <= multiBlock.end {
+				insideMultiLine = true
+				break
+			}
+		}
+
+		if !insideMultiLine {
+			blocks = append(blocks, codeBlock{start: match[0], end: match[1]})
+		}
+	}
+
+	return blocks
 }

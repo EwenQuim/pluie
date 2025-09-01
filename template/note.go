@@ -658,7 +658,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 				),
 				g.If(len(matter) > 0 && os.Getenv("HIDE_YAML_FRONTMATTER") != "true",
 					Div(
-						Class("mb-6"),
+						Class("mb-6 opacity-80"),
 						// YAML front matter header with toggle button
 						Div(
 							Class("flex items-center justify-between bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200 rounded-t-lg px-4 py-3 transition-all duration-200"),
