@@ -149,20 +149,6 @@ type TOCItem struct {
 	Level int
 }
 
-// slugify converts a string to a URL-friendly slug
-func slugify(text string) string {
-	// Convert to lowercase
-	slug := strings.ToLower(text)
-
-	// Replace spaces and common punctuation with hyphens
-	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "-")
-
-	// Remove leading and trailing hyphens
-	slug = strings.Trim(slug, "-")
-
-	return slug
-}
-
 // removeObsidianCallouts removes Obsidian callout notations from content
 func removeObsidianCallouts(content string) string {
 	// Regular expression to match Obsidian callout lines: > [!KEYWORD].*
@@ -189,7 +175,7 @@ func extractHeadings(content string) []TOCItem {
 			text := strings.TrimSpace(matches[2])
 
 			// Generate a slug from the heading text
-			baseSlug := slugify(text)
+			baseSlug := engine.SlugifyHeading(text)
 			id := baseSlug
 
 			// Handle duplicate slugs by appending a number

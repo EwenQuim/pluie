@@ -211,7 +211,7 @@ func TestSlugify(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := slugify(tt.input)
+			result := engine.SlugifyHeading(tt.input)
 			if result != tt.expected {
 				t.Errorf("slugify(%q) = %q, want %q", tt.input, result, tt.expected)
 			}

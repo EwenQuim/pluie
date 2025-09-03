@@ -105,7 +105,7 @@ function handleTOCClick(event, tocLink) {
 	}
 }
 
-// Slugify function to match the Go implementation
+// Slugify function to match the unified Go implementation for headings
 function slugify(text) {
 	return text
 		.toLowerCase()

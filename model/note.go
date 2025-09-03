@@ -20,25 +20,38 @@ type Note struct {
 	Metadata     map[string]any  `json:"metadata"`      // YAML frontmatter metadata
 }
 
-// If Slug is not defined, build it from the title
-// Replace spaces with dashes and clean up multiple dashes
+// BuildSlug creates a URL-friendly slug from the note's title or existing slug
+// This uses the unified slugification approach for notes (matches engine.SlugifyNoteWithCaseLogic)
 func (n *Note) BuildSlug() {
-	n.Slug = strings.TrimSuffix(n.Slug, ".md")
-
-	if n.Slug == "" {
-		n.Slug = n.Title
+	text := n.Slug
+	usingTitle := false
+	if text == "" {
+		text = n.Title
+		usingTitle = true
 	}
 
-	// Replace spaces with dashes and clean up multiple dashes in one pass
-	n.Slug = strings.ReplaceAll(n.Slug, " ", "-")
-	n.Slug = cleanMultipleDashes(n.Slug)
+	// Remove file extension
+	slug := strings.TrimSuffix(text, ".md")
+
+	// Only convert to lowercase if we're using an existing slug (not creating from title)
+	if !usingTitle {
+		slug = strings.ToLower(slug)
+	}
+
+	// For paths: replace spaces with dashes but preserve forward slashes
+	slug = strings.ReplaceAll(slug, " ", "-")
+
+	// Clean up multiple consecutive dashes
+	slug = cleanMultipleDashes(slug)
 
 	// Clean leading/trailing slashes and dashes
-	n.Slug = strings.Trim(n.Slug, "/-")
+	slug = strings.Trim(slug, "/-")
 
 	// URL encode while preserving forward slashes
-	n.Slug = url.PathEscape(n.Slug)
-	n.Slug = strings.ReplaceAll(n.Slug, "%2F", "/")
+	slug = url.PathEscape(slug)
+	slug = strings.ReplaceAll(slug, "%2F", "/")
+
+	n.Slug = slug
 }
 
 // cleanMultipleDashes removes consecutive dashes using a single pass
