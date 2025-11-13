@@ -8,4 +8,4 @@ author: "Test Author"
 
 This is a public note that should be accessible via the server.
 
-It contains some content for testing.
+It contains some content testing.

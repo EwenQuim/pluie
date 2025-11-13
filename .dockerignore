@@ -1,9 +1,34 @@
-vault
-tmp
-pluie
+# Git
 .git
+.gitignore
+
+# Build artifacts
+pluie
+main
+*.test
+*.out
+
+# Documentation
+README.md
+*.md
+
+# Test files
+*_test.go
+testdata/
+
+# Development files
+tmp/
+.vscode/
+.idea/
+.claude
+
+# OS files
 .DS_Store
-.vscode
-.idea
-node_modules
-dist
+Thumbs.db
+
+# Docker files (don't copy docker-compose into image)
+docker-compose*.yml
+Dockerfile*
+
+# CI/CD
+.github/

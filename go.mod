@@ -11,6 +11,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/getkin/kin-openapi v0.132.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.2 // indirect

@@ -9,6 +9,8 @@ services:
       - "9999:9999" # Left is host port (you can customize), right is container port (do not change)
     volumes:
       - ./vault:/vault # Left is host (you can set you own vault path), right is container (do not change)
+    # Uncomment to disable file watching:
+    # command: ./main -path /vault -watch=false
     environment:
       HOME_NOTE_SLUG: ACCUEIL # Default is "Index"
       SITE_TITLE: Pluie # Default "Pluie"

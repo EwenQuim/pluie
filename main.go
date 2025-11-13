@@ -3,61 +3,47 @@ package main
 import (
 	"flag"
 	"log/slog"
-	"time"
 
 	"github.com/EwenQuim/pluie/config"
-	"github.com/EwenQuim/pluie/engine"
-	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/template"
 )
 
 func main() {
 	path := flag.String("path", ".", "Path to the obsidian folder")
+	watch := flag.Bool("watch", true, "Enable file watching to auto-reload on changes")
 
 	flag.Parse()
 
 	// Load configuration
 	cfg := config.Load()
 
-	explorer := Explorer{
-		BasePath: *path,
-	}
-
-	start := time.Now()
-	notes, err := explorer.getFolderNotes("")
+	// Load initial notes
+	notesMap, tree, tagIndex, err := loadNotes(*path, cfg)
 	if err != nil {
-		slog.Error("Error exploring folder", "error", err)
+		slog.Error("Error loading notes", "error", err)
 		return
 	}
-	slog.Info("Processed files", "in", time.Since(start).String())
 
-	// Filter out private notes
-	publicNotes := filterPublicNotes(notes, cfg.PublicByDefault)
-
-	// Build backreferences for public notes only
-	publicNotes = engine.BuildBackreferences(publicNotes)
-
-	// Create a map of notes for quick access by slug
-	notesMap := make(map[string]model.Note)
-	for _, note := range publicNotes {
-		notesMap[note.Slug] = note
-	}
-
-	// Build tree structure with public notes only
-	tree := engine.BuildTree(publicNotes)
-
-	// Build tag index with public notes only
-	tagIndex := engine.BuildTagIndex(publicNotes)
-
-	err = Server{
-		NotesMap: &notesMap,
+	server := &Server{
+		NotesMap: notesMap,
 		Tree:     tree,
 		TagIndex: tagIndex,
 		rs: template.Resource{
 			Tree: tree,
 		},
 		cfg: cfg,
-	}.Start()
+	}
+
+	// Start file watcher if enabled
+	if *watch {
+		_, err = watchFiles(server, *path, cfg)
+		if err != nil {
+			slog.Error("Error starting file watcher", "error", err)
+			// Continue anyway - the server can still work without file watching
+		}
+	}
+
+	err = server.Start()
 	if err != nil {
 		panic(err)
 	}

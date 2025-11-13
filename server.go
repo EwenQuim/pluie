@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"sync"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -16,6 +17,7 @@ import (
 )
 
 type Server struct {
+	mu       sync.RWMutex           // Protects NotesMap, Tree, and TagIndex
 	NotesMap *map[string]model.Note // Slug -> Note
 	Tree     *engine.TreeNode       // Tree structure of notes
 	TagIndex engine.TagIndex        // Tag -> Notes mapping
@@ -26,7 +28,10 @@ type Server struct {
 // getHomeNoteSlug determines the home note slug based on priority:
 // 1. HOME_NOTE_SLUG config value
 // 2. First note in alphabetical order
-func (s Server) getHomeNoteSlug() string {
+func (s *Server) getHomeNoteSlug() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	// Priority 1: Check HOME_NOTE_SLUG configuration
 	if s.cfg.HomeNoteSlug != "" {
 		notesMap := *s.NotesMap
@@ -52,7 +57,22 @@ func (s Server) getHomeNoteSlug() string {
 	return ""
 }
 
-func (s Server) Start() error {
+// UpdateData safely updates the server's NotesMap, Tree, and TagIndex with new data
+func (s *Server) UpdateData(notesMap *map[string]model.Note, tree *engine.TreeNode, tagIndex engine.TagIndex) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.NotesMap = notesMap
+	s.Tree = tree
+	s.TagIndex = tagIndex
+
+	// Also update the resource tree for rendering
+	s.rs.Tree = tree
+
+	slog.Info("Server data updated", "notes_count", len(*notesMap))
+}
+
+func (s *Server) Start() error {
 	server := fuego.NewServer(
 		fuego.WithAddr(":"+s.cfg.Port),
 		fuego.WithEngineOptions(
@@ -75,7 +95,7 @@ func (s Server) Start() error {
 	return server.Run()
 }
 
-func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+func (s *Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	slug := ctx.PathParam("slug")
 	searchQuery := ctx.QueryParam("search")
 
@@ -83,7 +103,9 @@ func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug = s.getHomeNoteSlug()
 	}
 
+	s.mu.RLock()
 	notesMap := *s.NotesMap
+	s.mu.RUnlock()
 
 	note, ok := notesMap[slug]
 	if !ok {
@@ -100,7 +122,7 @@ func (s Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	return s.rs.NoteWithList(&note, searchQuery)
 }
 
-func (s Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	tag := ctx.PathParam("tag")
 
 	if tag == "" {
@@ -108,11 +130,15 @@ func (s Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		return s.rs.TagList("", nil)
 	}
 
+	s.mu.RLock()
+	tagIndex := s.TagIndex
+	s.mu.RUnlock()
+
 	// Get all notes that contain this tag
-	notesWithTag := s.TagIndex.GetNotesWithTag(tag)
+	notesWithTag := tagIndex.GetNotesWithTag(tag)
 
 	// Also get all tags that contain this tag as a substring
-	relatedTags := s.TagIndex.GetTagsContaining(tag)
+	relatedTags := tagIndex.GetTagsContaining(tag)
 
 	slog.Info("Tag search", "tag", tag, "notes_found", len(notesWithTag), "related_tags", len(relatedTags))
 

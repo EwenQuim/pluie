@@ -34,5 +34,6 @@ COPY --from=builder /app/main .
 # Create vault directory for data storage
 RUN mkdir -p /vault
 
-# Run the application
-CMD ["./main", "--path", "/vault"]
+# Run the application (file watching is enabled by default)
+# To disable watching, override with: -watch=false
+CMD ["./main", "-path", "/vault"]
