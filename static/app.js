@@ -1,93 +1,121 @@
+// @ts-check
+// Constants
+const SCROLL_HEADING_THRESHOLD = 100;
+const SCROLL_THROTTLE_MS = 100;
+const HTMX_RESTORE_DELAY_MS = 10;
+const HTMX_HEADING_DELAY_MS = 50;
+const HASH_SCROLL_DELAY_MS = 100;
+const MOBILE_BREAKPOINT = 768;
+
+// Helper functions for localStorage
+/**
+ * Retrieves the open folders state from localStorage.
+ * @returns {Record<string, boolean>} Object mapping folder paths to their open state (true/false)
+ */
+function getOpenFolders() {
+	return JSON.parse(localStorage.getItem('openFolders') || '{}');
+}
+
+/**
+ * Saves the open folders state to localStorage.
+ * @param {Record<string, boolean>} openFolders - Object mapping folder paths to their open state (true/false)
+ */
+function saveOpenFolders(openFolders) {
+	localStorage.setItem('openFolders', JSON.stringify(openFolders));
+}
+
 // Tree folding functionality
-function toggleFolder(folderPath) {
+/**
+ * Sets the visual state (open/closed) of a folder in the navigation tree.
+ * @param {string} folderPath - The path identifier of the folder
+ * @param {boolean} isOpen - Whether the folder should be open (true) or closed (false)
+ */
+function setFolderState(folderPath, isOpen) {
 	const folderElement = document.getElementById('folder-' + folderPath);
 	const chevronElement = document.getElementById('chevron-' + folderPath);
 
 	if (folderElement && chevronElement) {
-		const isCurrentlyOpen = folderElement.style.display !== 'none';
+		folderElement.style.display = isOpen ? 'block' : 'none';
+		chevronElement.textContent = isOpen ? '▼' : '▶';
+	}
+}
 
-		if (isCurrentlyOpen) {
-			// Close folder
-			folderElement.style.display = 'none';
-			chevronElement.textContent = '▶';
-		} else {
-			// Open folder
-			folderElement.style.display = 'block';
-			chevronElement.textContent = '▼';
-		}
+/**
+ * Toggles a folder between open and closed states and persists the state to localStorage.
+ * @param {string} folderPath - The path identifier of the folder to toggle
+ */
+function toggleFolder(folderPath) {
+	const folderElement = document.getElementById('folder-' + folderPath);
+
+	if (folderElement) {
+		const isCurrentlyOpen = folderElement.style.display !== 'none';
+		const newState = !isCurrentlyOpen;
+
+		setFolderState(folderPath, newState);
 
 		// Store folder state in localStorage
-		const openFolders = JSON.parse(localStorage.getItem('openFolders') || '{}');
-		openFolders[folderPath] = !isCurrentlyOpen;
-		localStorage.setItem('openFolders', JSON.stringify(openFolders));
+		const openFolders = getOpenFolders();
+		openFolders[folderPath] = newState;
+		saveOpenFolders(openFolders);
 	}
 }
 
-// Expand all folders
+/**
+ * Sets all folders in the navigation tree to the same state (all open or all closed).
+ * @param {boolean} isOpen - Whether all folders should be open (true) or closed (false)
+ */
+function setAllFoldersState(isOpen) {
+	const allFolders = document.querySelectorAll('[id^="folder-"]');
+	/** @type {Record<string, boolean>} */
+	const openFolders = {};
+
+	allFolders.forEach(folder => {
+		const folderPath = folder.id.replace('folder-', '');
+		setFolderState(folderPath, isOpen);
+		openFolders[folderPath] = isOpen;
+	});
+
+	// Update localStorage
+	saveOpenFolders(openFolders);
+}
+
+/**
+ * Expands all folders in the navigation tree.
+ */
 function expandAllFolders() {
-	const allFolders = document.querySelectorAll('[id^="folder-"]');
-	const allChevrons = document.querySelectorAll('[id^="chevron-"]');
-	const openFolders = {};
-
-	allFolders.forEach(folder => {
-		folder.style.display = 'block';
-		const folderPath = folder.id.replace('folder-', '');
-		openFolders[folderPath] = true;
-	});
-
-	allChevrons.forEach(chevron => {
-		chevron.textContent = '▼';
-	});
-
-	// Update localStorage
-	localStorage.setItem('openFolders', JSON.stringify(openFolders));
+	setAllFoldersState(true);
 }
 
-// Collapse all folders
+/**
+ * Collapses all folders in the navigation tree.
+ */
 function collapseAllFolders() {
-	const allFolders = document.querySelectorAll('[id^="folder-"]');
-	const allChevrons = document.querySelectorAll('[id^="chevron-"]');
-	const openFolders = {};
-
-	allFolders.forEach(folder => {
-		folder.style.display = 'none';
-		const folderPath = folder.id.replace('folder-', '');
-		openFolders[folderPath] = false;
-	});
-
-	allChevrons.forEach(chevron => {
-		chevron.textContent = '▶';
-	});
-
-	// Update localStorage
-	localStorage.setItem('openFolders', JSON.stringify(openFolders));
+	setAllFoldersState(false);
 }
 
-// Restore folder states from localStorage
+/**
+ * Restores folder states from localStorage, setting each folder to its previously saved state.
+ */
 function restoreFolderStates() {
-	const openFolders = JSON.parse(localStorage.getItem('openFolders') || '{}');
+	const openFolders = getOpenFolders();
 
 	for (const [folderPath, isOpen] of Object.entries(openFolders)) {
-		const folderElement = document.getElementById('folder-' + folderPath);
-		const chevronElement = document.getElementById('chevron-' + folderPath);
-
-		if (folderElement && chevronElement) {
-			if (isOpen) {
-				folderElement.style.display = 'block';
-				chevronElement.textContent = '▼';
-			} else {
-				folderElement.style.display = 'none';
-				chevronElement.textContent = '▶';
-			}
-		}
+		setFolderState(folderPath, isOpen);
 	}
 }
 
-// Handle TOC click events for smooth scrolling and active state
+/**
+ * Handles clicks on table of contents links, providing smooth scrolling and updating active state.
+ * @param {Event} event - The click event
+ * @param {HTMLAnchorElement} tocLink - The clicked TOC link element
+ */
 function handleTOCClick(event, tocLink) {
 	event.preventDefault();
 
-	const targetId = tocLink.getAttribute('href').substring(1); // Remove the #
+	const href = tocLink.getAttribute('href');
+	if (!href) return;
+
+	const targetId = href.substring(1); // Remove the #
 	const targetElement = document.getElementById(targetId);
 
 	if (targetElement) {
@@ -98,14 +126,19 @@ function handleTOCClick(event, tocLink) {
 		});
 
 		// Update URL hash
-		history.pushState(null, null, `#${targetId}`);
+		history.pushState(null, '', `#${targetId}`);
 
 		// Update active state
 		updateActiveTocItem(tocLink);
 	}
 }
 
-// Slugify function to match the unified Go implementation for headings
+/**
+ * Converts text to a URL-friendly slug format, matching the Go implementation.
+ * Lowercases text, replaces non-alphanumeric characters with hyphens, and trims edge hyphens.
+ * @param {string} text - The text to slugify
+ * @returns {string} The slugified text
+ */
 function slugify(text) {
 	return text
 		.toLowerCase()
@@ -113,7 +146,10 @@ function slugify(text) {
 		.replace(/^-+|-+$/g, '');
 }
 
-// Add IDs to headings that match the TOC structure
+/**
+ * Adds unique IDs to all headings in the content area to match the TOC structure.
+ * Handles duplicate slugs by appending numbers.
+ */
 function addHeadingIds() {
 	const contentArea = document.querySelector('.prose');
 	if (!contentArea) return;
@@ -141,7 +177,10 @@ function addHeadingIds() {
 	});
 }
 
-// Update active TOC item based on scroll position
+/**
+ * Updates the active state of TOC items based on scroll position or a specific item.
+ * @param {Element|null} activeItem - The specific TOC link to set as active, or null to determine from scroll position
+ */
 function updateActiveTocItem(activeItem = null) {
 	const tocLinks = document.querySelectorAll('#table-of-contents a');
 
@@ -158,18 +197,20 @@ function updateActiveTocItem(activeItem = null) {
 	} else {
 		// Find active item based on scroll position
 		const headings = document.querySelectorAll('.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6');
+		/** @type {Element|null} */
 		let activeHeading = null;
 
 		// Find the heading that's currently in view
 		headings.forEach(heading => {
 			const rect = heading.getBoundingClientRect();
-			if (rect.top <= 100 && rect.top >= -100) {
+			if (rect.top <= SCROLL_HEADING_THRESHOLD && rect.top >= -SCROLL_HEADING_THRESHOLD) {
 				activeHeading = heading;
 			}
 		});
 
 		if (activeHeading) {
-			const activeLink = document.querySelector(`#table-of-contents a[href="#${activeHeading.id}"]`);
+			const headingId = /** @type {Element} */ (activeHeading).id;
+			const activeLink = document.querySelector(`#table-of-contents a[href="#${headingId}"]`);
 			if (activeLink) {
 				activeLink.classList.remove('text-gray-600');
 				activeLink.classList.add('text-purple-600', 'bg-purple-50', 'font-medium');
@@ -178,8 +219,32 @@ function updateActiveTocItem(activeItem = null) {
 	}
 }
 
-// Throttle function for scroll events
-function throttle(func, wait) {
+/**
+ * Handles URL hash navigation by smoothly scrolling to the target heading and updating TOC active state.
+ * Checks if there's a hash in the URL and scrolls to the corresponding heading if found.
+ */
+function handleHashNavigation() {
+	if (window.location.hash) {
+		const targetElement = document.querySelector(window.location.hash);
+		if (targetElement) {
+			targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			const activeLink = document.querySelector(`#table-of-contents a[href="${window.location.hash}"]`);
+			if (activeLink) {
+				updateActiveTocItem(activeLink);
+			}
+		}
+	}
+}
+
+/**
+ * Creates a debounced version of a function that delays its execution until after
+ * the specified wait time has elapsed since the last invocation.
+ * @param {(...args: any[]) => void} func - The function to debounce
+ * @param {number} wait - The delay in milliseconds
+ * @returns {(...args: any[]) => void} The debounced function
+ */
+function debounce(func, wait) {
+	/** @type {number | undefined} */
 	let timeout;
 	return function executedFunction(...args) {
 		const later = () => {
@@ -192,12 +257,46 @@ function throttle(func, wait) {
 }
 
 // Mobile sidebar functionality
+/**
+ * Retrieves all mobile sidebar-related DOM elements.
+ * @returns {{sidebar: HTMLElement|null, overlay: HTMLElement|null, line1: HTMLElement|null, line2: HTMLElement|null, line3: HTMLElement|null}} Object containing sidebar, overlay, and burger menu line elements
+ */
+function getMobileSidebarElements() {
+	return {
+		sidebar: document.getElementById('mobile-sidebar'),
+		overlay: document.getElementById('mobile-sidebar-overlay'),
+		line1: document.getElementById('burger-line-1'),
+		line2: document.getElementById('burger-line-2'),
+		line3: document.getElementById('burger-line-3')
+	};
+}
+
+/**
+ * Sets the visual state of the burger menu icon (hamburger or X).
+ * @param {boolean} isOpen - Whether to show the menu as open (X) or closed (hamburger)
+ */
+function setBurgerMenuState(isOpen) {
+	const { line1, line2, line3 } = getMobileSidebarElements();
+
+	if (line1 && line2 && line3) {
+		if (isOpen) {
+			line1.classList.add('rotate-45', 'translate-y-2');
+			line2.classList.add('opacity-0');
+			line3.classList.add('-rotate-45', '-translate-y-2');
+		} else {
+			line1.classList.remove('rotate-45', 'translate-y-2');
+			line2.classList.remove('opacity-0');
+			line3.classList.remove('-rotate-45', '-translate-y-2');
+		}
+	}
+}
+
+/**
+ * Toggles the mobile sidebar between open and closed states.
+ * Also animates the burger menu icon and manages body scroll locking.
+ */
 function toggleMobileSidebar() {
-	const sidebar = document.getElementById('mobile-sidebar');
-	const overlay = document.getElementById('mobile-sidebar-overlay');
-	const line1 = document.getElementById('burger-line-1');
-	const line2 = document.getElementById('burger-line-2');
-	const line3 = document.getElementById('burger-line-3');
+	const { sidebar, overlay } = getMobileSidebarElements();
 
 	if (sidebar && overlay) {
 		const isHidden = sidebar.classList.contains('-translate-x-full');
@@ -210,11 +309,7 @@ function toggleMobileSidebar() {
 			overlay.classList.add('opacity-100', 'visible');
 
 			// Animate burger menu to X
-			if (line1 && line2 && line3) {
-				line1.classList.add('rotate-45', 'translate-y-2');
-				line2.classList.add('opacity-0');
-				line3.classList.add('-rotate-45', '-translate-y-2');
-			}
+			setBurgerMenuState(true);
 
 			// Prevent body scroll when sidebar is open
 			document.body.style.overflow = 'hidden';
@@ -225,12 +320,12 @@ function toggleMobileSidebar() {
 	}
 }
 
+/**
+ * Closes the mobile sidebar and restores the page to its normal state.
+ * Resets the burger menu icon and restores body scrolling.
+ */
 function closeMobileSidebar() {
-	const sidebar = document.getElementById('mobile-sidebar');
-	const overlay = document.getElementById('mobile-sidebar-overlay');
-	const line1 = document.getElementById('burger-line-1');
-	const line2 = document.getElementById('burger-line-2');
-	const line3 = document.getElementById('burger-line-3');
+	const { sidebar, overlay } = getMobileSidebarElements();
 
 	if (sidebar && overlay) {
 		sidebar.classList.remove('translate-x-0');
@@ -239,41 +334,45 @@ function closeMobileSidebar() {
 		overlay.classList.add('opacity-0', 'invisible');
 
 		// Reset burger menu animation
-		if (line1 && line2 && line3) {
-			line1.classList.remove('rotate-45', 'translate-y-2');
-			line2.classList.remove('opacity-0');
-			line3.classList.remove('-rotate-45', '-translate-y-2');
-		}
+		setBurgerMenuState(false);
 
 		// Restore body scroll
 		document.body.style.overflow = '';
 	}
 }
 
-// Close mobile sidebar when clicking on a link (for better UX)
+/**
+ * Closes the mobile sidebar when a link is clicked, but only on mobile devices.
+ * Provides better UX by automatically hiding the sidebar after navigation.
+ */
 function handleMobileLinkClick() {
 	// Only close on mobile devices
-	if (window.innerWidth < 768) {
+	if (window.innerWidth < MOBILE_BREAKPOINT) {
 		closeMobileSidebar();
 	}
 }
 
 // YAML front matter toggle functionality
+/**
+ * Toggles the visibility of YAML front matter and persists the state to localStorage.
+ * Updates the button text to reflect the current state (Show/Hide).
+ */
 function toggleYamlFrontmatter() {
 	const yamlContent = document.getElementById('yaml-content');
 	const yamlToggleBtn = document.getElementById('yaml-toggle-btn');
 
 	if (yamlContent && yamlToggleBtn) {
 		const isCurrentlyHidden = yamlContent.style.display === 'none';
+		const buttonText = yamlToggleBtn.querySelector('span:last-child');
 
 		if (isCurrentlyHidden) {
 			// Show YAML content
 			yamlContent.style.display = 'block';
-			yamlToggleBtn.querySelector('span:last-child').textContent = 'Hide';
+			if (buttonText) buttonText.textContent = 'Hide';
 		} else {
 			// Hide YAML content
 			yamlContent.style.display = 'none';
-			yamlToggleBtn.querySelector('span:last-child').textContent = 'Show';
+			if (buttonText) buttonText.textContent = 'Show';
 		}
 
 		// Store YAML front matter state in localStorage
@@ -281,20 +380,24 @@ function toggleYamlFrontmatter() {
 	}
 }
 
-// Restore YAML front matter state from localStorage
+/**
+ * Restores the YAML front matter visibility state from localStorage on page load.
+ * Sets the initial visibility and button text based on saved preferences.
+ */
 function restoreYamlFrontmatterState() {
 	const yamlContent = document.getElementById('yaml-content');
 	const yamlToggleBtn = document.getElementById('yaml-toggle-btn');
 
 	if (yamlContent && yamlToggleBtn) {
 		const isOpen = localStorage.getItem('yamlFrontmatterOpen') === 'true';
+		const buttonText = yamlToggleBtn.querySelector('span:last-child');
 
 		if (isOpen) {
 			yamlContent.style.display = 'block';
-			yamlToggleBtn.querySelector('span:last-child').textContent = 'Hide';
+			if (buttonText) buttonText.textContent = 'Hide';
 		} else {
 			yamlContent.style.display = 'none';
-			yamlToggleBtn.querySelector('span:last-child').textContent = 'Show';
+			if (buttonText) buttonText.textContent = 'Show';
 		}
 	}
 }
@@ -313,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Update active TOC item on scroll
 	const mainContent = document.querySelector('.flex-1.overflow-y-auto');
 	if (mainContent) {
-		mainContent.addEventListener('scroll', throttle(updateActiveTocItem, 100));
+		mainContent.addEventListener('scroll', debounce(updateActiveTocItem, SCROLL_THROTTLE_MS));
 	}
 
 	// Handle cmd+K (or ctrl+K on Windows/Linux) to focus search
@@ -323,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			event.preventDefault();
 
 			// Find the search input
-			const searchInput = document.querySelector('input[name="search"]');
+			const searchInput = /** @type {HTMLInputElement|null} */ (document.querySelector('input[name="search"]'));
 			if (searchInput) {
 				searchInput.focus();
 				searchInput.select(); // Select all text for easy replacement
@@ -334,45 +437,25 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Restore folder states after HTMX requests
 	document.body.addEventListener('htmx:afterSwap', function (event) {
 		// Only restore states if the notes list was updated
-		if (event.target.id === 'notes-list' || event.target.closest('#notes-list')) {
-			setTimeout(restoreFolderStates, 10); // Small delay to ensure DOM is updated
+		const target = /** @type {Element|null} */ (event.target);
+		if (target && (target.id === 'notes-list' || target.closest('#notes-list'))) {
+			setTimeout(restoreFolderStates, HTMX_RESTORE_DELAY_MS); // Small delay to ensure DOM is updated
 		}
 	});
 
 	// Add heading IDs after HTMX content updates
 	document.body.addEventListener('htmx:afterSwap', function (event) {
 		// Check if the main content was updated
-		if (event.target.closest('.prose') || event.target.classList.contains('prose')) {
+		const target = /** @type {Element|null} */ (event.target);
+		if (target && (target.closest('.prose') || target.classList.contains('prose'))) {
 			setTimeout(() => {
 				addHeadingIds();
 				// Handle hash in URL on page load
-				if (window.location.hash) {
-					const targetElement = document.querySelector(window.location.hash);
-					if (targetElement) {
-						setTimeout(() => {
-							targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-							const activeLink = document.querySelector(`#table-of-contents a[href="${window.location.hash}"]`);
-							if (activeLink) {
-								updateActiveTocItem(activeLink);
-							}
-						}, 100);
-					}
-				}
-			}, 50);
+				setTimeout(handleHashNavigation, HASH_SCROLL_DELAY_MS);
+			}, HTMX_HEADING_DELAY_MS);
 		}
 	});
 
 	// Handle hash in URL on initial page load
-	if (window.location.hash) {
-		setTimeout(() => {
-			const targetElement = document.querySelector(window.location.hash);
-			if (targetElement) {
-				targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-				const activeLink = document.querySelector(`#table-of-contents a[href="${window.location.hash}"]`);
-				if (activeLink) {
-					updateActiveTocItem(activeLink);
-				}
-			}
-		}, 100);
-	}
+	setTimeout(handleHashNavigation, HASH_SCROLL_DELAY_MS);
 });
