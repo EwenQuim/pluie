@@ -17,7 +17,7 @@ import (
 )
 
 type Resource struct {
-	Tree *engine.TreeNode
+	NotesService *engine.NotesService
 }
 
 // MapMap creates nodes from a map
@@ -435,7 +435,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	if note != nil {
 		// Parse wikilinks in metadata before using it
-		matter = engine.ParseWikiLinksInMetadata(note.Metadata, rs.Tree)
+		matter = engine.ParseWikiLinksInMetadata(note.Metadata, rs.NotesService.GetTree())
 		// Also parse tag links in metadata
 		matter = engine.ParseTagLinksInMetadata(matter)
 		slug = note.Slug
@@ -448,7 +448,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	}
 
 	// Parse wiki-style links before markdown processing
-	parsedContent := engine.ParseWikiLinks(string(content), rs.Tree)
+	parsedContent := engine.ParseWikiLinks(string(content), rs.NotesService.GetTree())
 
 	// Parse hashtags to clickable links
 	parsedContent = engine.ParseHashtagLinks(parsedContent)
@@ -462,9 +462,9 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	tocItems := extractHeadings(parsedContent)
 
 	// Filter tree based on search query
-	displayTree := rs.Tree
+	displayTree := rs.NotesService.GetTree()
 	if searchQuery != "" {
-		displayTree = engine.FilterTreeBySearch(rs.Tree, searchQuery)
+		displayTree = engine.FilterTreeBySearch(rs.NotesService.GetTree(), searchQuery)
 	}
 
 	// Get site title, icon, and description from environment variables
@@ -878,10 +878,10 @@ func (rs Resource) TagList(tag string, notes []model.Note) (gomponents.Node, err
 					Div(
 						ID("notes-list"),
 						Class(""),
-						g.If(rs.Tree != nil && len(rs.Tree.Children) > 0,
+						g.If(rs.NotesService.GetTree() != nil && len(rs.NotesService.GetTree().Children) > 0,
 							Ul(
 								Class(""),
-								g.Group(g.Map(rs.Tree.Children, func(child *engine.TreeNode) gomponents.Node {
+								g.Group(g.Map(rs.NotesService.GetTree().Children, func(child *engine.TreeNode) gomponents.Node {
 									return rs.renderTreeNode(child, "")
 								})),
 							),

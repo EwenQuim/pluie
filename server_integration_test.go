@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/EwenQuim/pluie/config"
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/template"
 )
 
@@ -46,12 +47,11 @@ This is the initial content.
 	}
 
 	// Create server
+	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
 	server := &Server{
-		NotesMap: notesMap,
-		Tree:     tree,
-		TagIndex: tagIndex,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: tree,
+			NotesService: notesService,
 		},
 		cfg: cfg,
 	}
@@ -301,11 +301,7 @@ func createTestHandler(server *Server) http.Handler {
 			slug = server.getHomeNoteSlug()
 		}
 
-		server.mu.RLock()
-		notesMap := *server.NotesMap
-		server.mu.RUnlock()
-
-		note, ok := notesMap[slug]
+		note, ok := server.NotesService.GetNote(slug)
 		if !ok {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Note not found: %s", slug)

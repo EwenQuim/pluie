@@ -56,9 +56,16 @@ func TestParseWikiLinks(t *testing.T) {
 	// Build tree from notes
 	tree := buildTestTree(notes)
 
-	// Create a Resource with the tree
+	// Create notes map
+	notesMap := make(map[string]model.Note)
+	for _, note := range notes {
+		notesMap[note.Slug] = note
+	}
+
+	// Create NotesService and Resource
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: tree,
+		NotesService: notesService,
 	}
 
 	tests := []struct {
@@ -206,7 +213,7 @@ func TestParseWikiLinks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.ParseWikiLinks(tt.input, rs.Tree)
+			result := engine.ParseWikiLinks(tt.input, rs.NotesService.GetTree())
 			if result != tt.expected {
 				t.Errorf("parseWikiLinks() = %q, want %q", result, tt.expected)
 			}
@@ -216,19 +223,22 @@ func TestParseWikiLinks(t *testing.T) {
 
 func TestParseWikiLinksWithEmptyNotes(t *testing.T) {
 	// Test with empty tree
+	tree := &engine.TreeNode{
+		Name:     "Notes",
+		Path:     "",
+		IsFolder: true,
+		Children: []*engine.TreeNode{},
+		IsOpen:   true,
+	}
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: &engine.TreeNode{
-			Name:     "Notes",
-			Path:     "",
-			IsFolder: true,
-			Children: []*engine.TreeNode{},
-			IsOpen:   true,
-		},
+		NotesService: notesService,
 	}
 
 	input := "This [[Test Note]] should not be found."
 	expected := "This Test Note should not be found."
-	result := engine.ParseWikiLinks(input, rs.Tree)
+	result := engine.ParseWikiLinks(input, rs.NotesService.GetTree())
 
 	if result != expected {
 		t.Errorf("parseWikiLinks() with empty notes = %q, want %q", result, expected)
@@ -248,7 +258,14 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 	// Build tree from notes
 	tree := buildTestTree(notes)
 
-	rs := Resource{Tree: tree}
+	// Create notes map
+	notesMap := make(map[string]model.Note)
+	for _, note := range notes {
+		notesMap[note.Slug] = note
+	}
+
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
+	rs := Resource{NotesService: notesService}
 
 	// Create content with multiple wiki links
 	content := "Start "
@@ -258,7 +275,7 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 	content += "End"
 
 	// This should complete reasonably quickly
-	result := engine.ParseWikiLinks(content, rs.Tree)
+	result := engine.ParseWikiLinks(content, rs.NotesService.GetTree())
 
 	// Verify that some transformations occurred
 	if !strings.Contains(result, "[Note 0](/note-0)") {
@@ -358,11 +375,18 @@ func BenchmarkParseWikiLinks(b *testing.B) {
 	// Build tree from notes
 	tree := buildTestTree(notes)
 
-	rs := Resource{Tree: tree}
+	// Create notes map
+	notesMap := make(map[string]model.Note)
+	for _, note := range notes {
+		notesMap[note.Slug] = note
+	}
+
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
+	rs := Resource{NotesService: notesService}
 
 	content := "This is a [[Test Note]] with [[Another Note]] and some [[Missing Link]] content."
 
 	for b.Loop() {
-		engine.ParseWikiLinks(content, rs.Tree)
+		engine.ParseWikiLinks(content, rs.NotesService.GetTree())
 	}
 }

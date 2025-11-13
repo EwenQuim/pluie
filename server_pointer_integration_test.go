@@ -30,11 +30,11 @@ func TestServerPointerIntegration(t *testing.T) {
 	tree := engine.BuildTree(notes)
 
 	// Create server instance
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	server := Server{
-		NotesMap: &notesMap,
-		Tree:     tree,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: tree,
+			NotesService: notesService,
 		},
 		cfg: &config.Config{
 			PublicByDefault: true,
@@ -138,11 +138,11 @@ func TestServerPointerIntegrationWithPrivateNote(t *testing.T) {
 	tree := engine.BuildTree(notes)
 
 	// Create server instance
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	server := Server{
-		NotesMap: &notesMap,
-		Tree:     tree,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: tree,
+			NotesService: notesService,
 		},
 		cfg: &config.Config{
 			PublicByDefault: false, // Private by default

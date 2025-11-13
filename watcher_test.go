@@ -73,19 +73,18 @@ This is the initial content.
 	}
 
 	// Create server
+	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
 	server := &Server{
-		NotesMap: notesMap,
-		Tree:     tree,
-		TagIndex: tagIndex,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: tree,
+			NotesService: notesService,
 		},
 		cfg: cfg,
 	}
 
 	// Verify initial note was loaded
-	if len(*server.NotesMap) != 1 {
-		t.Errorf("Expected 1 initial note, got %d", len(*server.NotesMap))
+	if len(server.NotesService.GetNotesMap()) != 1 {
+		t.Errorf("Expected 1 initial note, got %d", len(server.NotesService.GetNotesMap()))
 	}
 
 	// Start file watcher
@@ -116,17 +115,15 @@ This content has been modified.
 	time.Sleep(1 * time.Second)
 
 	// Verify the note was reloaded
-	server.mu.RLock()
-	notesMap = server.NotesMap
-	server.mu.RUnlock()
+	reloadedNotesMap := server.NotesService.GetNotesMap()
 
-	if len(*notesMap) != 1 {
-		t.Errorf("Expected 1 note after modification, got %d", len(*notesMap))
+	if len(reloadedNotesMap) != 1 {
+		t.Errorf("Expected 1 note after modification, got %d", len(reloadedNotesMap))
 	}
 
 	// Find the note (we need to get its slug first)
 	var foundNote *model.Note
-	for _, note := range *notesMap {
+	for _, note := range reloadedNotesMap {
 		if note.Title == "Modified Note" {
 			foundNote = &note
 			break
@@ -160,17 +157,15 @@ This is a new note.
 	time.Sleep(1 * time.Second)
 
 	// Verify the new note was added
-	server.mu.RLock()
-	notesMap = server.NotesMap
-	tree = server.Tree
-	server.mu.RUnlock()
+	finalNotesMap := server.NotesService.GetNotesMap()
+	finalTree := server.NotesService.GetTree()
 
-	if len(*notesMap) != 2 {
-		t.Errorf("Expected 2 notes after adding new note, got %d", len(*notesMap))
+	if len(finalNotesMap) != 2 {
+		t.Errorf("Expected 2 notes after adding new note, got %d", len(finalNotesMap))
 	}
 
 	// Verify tree was updated
-	allNotes := engine.GetAllNotesFromTree(tree)
+	allNotes := engine.GetAllNotesFromTree(finalTree)
 	if len(allNotes) != 2 {
 		t.Errorf("Expected 2 notes in tree after adding new note, got %d", len(allNotes))
 	}

@@ -32,11 +32,11 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 	tree := engine.BuildTree(publicNotes)
 
 	// Create server with filtered data
+	notesService := engine.NewNotesService(&publicNotesMap, tree, nil)
 	server := Server{
-		NotesMap: &publicNotesMap,
-		Tree:     tree,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: tree,
+			NotesService: notesService,
 		},
 		cfg: &config.Config{
 			PublicByDefault: false,
@@ -88,8 +88,7 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 					slug = server.getHomeNoteSlug()
 				}
 
-				notesMap := *server.NotesMap
-				note, ok := notesMap[slug]
+				note, ok := server.NotesService.GetNote(slug)
 				if !ok {
 					// Note not found - this simulates the server behavior
 					w.WriteHeader(http.StatusOK)
@@ -174,11 +173,11 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := engine.BuildTree(tt.notes)
+			notesService := engine.NewNotesService(&tt.notesMap, tree, nil)
 			server := Server{
-				NotesMap: &tt.notesMap,
-				Tree:     tree,
+				NotesService: notesService,
 				rs: template.Resource{
-					Tree: tree,
+					NotesService: notesService,
 				},
 				cfg: &config.Config{
 					PublicByDefault: false,

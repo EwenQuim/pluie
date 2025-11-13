@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/EwenQuim/pluie/config"
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/template"
 )
 
@@ -24,12 +25,12 @@ func main() {
 		return
 	}
 
+	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
+
 	server := &Server{
-		NotesMap: notesMap,
-		Tree:     tree,
-		TagIndex: tagIndex,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: tree,
+			NotesService: notesService,
 		},
 		cfg: cfg,
 	}

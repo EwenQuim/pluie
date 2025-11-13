@@ -608,12 +608,15 @@ func TestRenderYamlProperty(t *testing.T) {
 }
 
 func TestRenderTreeNode(t *testing.T) {
+	tree := &engine.TreeNode{
+		Name:     "root",
+		IsFolder: true,
+		Children: []*engine.TreeNode{},
+	}
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: &engine.TreeNode{
-			Name:     "root",
-			IsFolder: true,
-			Children: []*engine.TreeNode{},
-		},
+		NotesService: notesService,
 	}
 
 	tests := []struct {
@@ -669,12 +672,15 @@ func TestRenderTreeNode(t *testing.T) {
 }
 
 func TestRenderFolderNode(t *testing.T) {
+	tree := &engine.TreeNode{
+		Name:     "root",
+		IsFolder: true,
+		Children: []*engine.TreeNode{},
+	}
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: &engine.TreeNode{
-			Name:     "root",
-			IsFolder: true,
-			Children: []*engine.TreeNode{},
-		},
+		NotesService: notesService,
 	}
 
 	tests := []struct {
@@ -723,12 +729,15 @@ func TestRenderFolderNode(t *testing.T) {
 }
 
 func TestRenderNoteNode(t *testing.T) {
+	tree := &engine.TreeNode{
+		Name:     "root",
+		IsFolder: true,
+		Children: []*engine.TreeNode{},
+	}
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: &engine.TreeNode{
-			Name:     "root",
-			IsFolder: true,
-			Children: []*engine.TreeNode{},
-		},
+		NotesService: notesService,
 	}
 
 	tests := []struct {
@@ -779,12 +788,15 @@ func TestRenderNoteNode(t *testing.T) {
 }
 
 func TestRenderChevronIcon(t *testing.T) {
+	tree := &engine.TreeNode{
+		Name:     "root",
+		IsFolder: true,
+		Children: []*engine.TreeNode{},
+	}
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: &engine.TreeNode{
-			Name:     "root",
-			IsFolder: true,
-			Children: []*engine.TreeNode{},
-		},
+		NotesService: notesService,
 	}
 
 	tests := []struct {
@@ -822,12 +834,15 @@ func TestRenderChevronIcon(t *testing.T) {
 }
 
 func TestRenderFolderChildren(t *testing.T) {
+	tree := &engine.TreeNode{
+		Name:     "root",
+		IsFolder: true,
+		Children: []*engine.TreeNode{},
+	}
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: &engine.TreeNode{
-			Name:     "root",
-			IsFolder: true,
-			Children: []*engine.TreeNode{},
-		},
+		NotesService: notesService,
 	}
 
 	tests := []struct {
@@ -908,8 +923,10 @@ func TestNoteWithList(t *testing.T) {
 		},
 	}
 
+	notesMap := make(map[string]model.Note)
+	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	rs := Resource{
-		Tree: tree,
+		NotesService: notesService,
 	}
 
 	tests := []struct {

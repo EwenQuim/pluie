@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
-	"sync"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -17,34 +16,27 @@ import (
 )
 
 type Server struct {
-	mu       sync.RWMutex           // Protects NotesMap, Tree, and TagIndex
-	NotesMap *map[string]model.Note // Slug -> Note
-	Tree     *engine.TreeNode       // Tree structure of notes
-	TagIndex engine.TagIndex        // Tag -> Notes mapping
-	rs       template.Resource
-	cfg      *config.Config
+	NotesService *engine.NotesService
+	rs           template.Resource
+	cfg          *config.Config
 }
 
 // getHomeNoteSlug determines the home note slug based on priority:
 // 1. HOME_NOTE_SLUG config value
 // 2. First note in alphabetical order
 func (s *Server) getHomeNoteSlug() string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	// Priority 1: Check HOME_NOTE_SLUG configuration
 	if s.cfg.HomeNoteSlug != "" {
-		notesMap := *s.NotesMap
-
-		if _, exists := notesMap[s.cfg.HomeNoteSlug]; exists {
+		if _, exists := s.NotesService.GetNote(s.cfg.HomeNoteSlug); exists {
 			return s.cfg.HomeNoteSlug
 		}
 	}
 
 	// Priority 2: First note in alphabetical order
-	if s.Tree != nil {
+	tree := s.NotesService.GetTree()
+	if tree != nil {
 		// Get all notes from tree and sort by slug
-		notes := engine.GetAllNotesFromTree(s.Tree)
+		notes := engine.GetAllNotesFromTree(tree)
 		if len(notes) > 0 {
 			sort.Slice(notes, func(i, j int) bool {
 				return notes[i].Slug < notes[j].Slug
@@ -59,17 +51,7 @@ func (s *Server) getHomeNoteSlug() string {
 
 // UpdateData safely updates the server's NotesMap, Tree, and TagIndex with new data
 func (s *Server) UpdateData(notesMap *map[string]model.Note, tree *engine.TreeNode, tagIndex engine.TagIndex) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.NotesMap = notesMap
-	s.Tree = tree
-	s.TagIndex = tagIndex
-
-	// Also update the resource tree for rendering
-	s.rs.Tree = tree
-
-	slog.Info("Server data updated", "notes_count", len(*notesMap))
+	s.NotesService.UpdateData(notesMap, tree, tagIndex)
 }
 
 func (s *Server) Start() error {
@@ -103,11 +85,7 @@ func (s *Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		slug = s.getHomeNoteSlug()
 	}
 
-	s.mu.RLock()
-	notesMap := *s.NotesMap
-	s.mu.RUnlock()
-
-	note, ok := notesMap[slug]
+	note, ok := s.NotesService.GetNote(slug)
 	if !ok {
 		slog.Info("Note not found", "slug", slug)
 		return s.rs.NoteWithList(nil, searchQuery)
@@ -130,9 +108,7 @@ func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		return s.rs.TagList("", nil)
 	}
 
-	s.mu.RLock()
-	tagIndex := s.TagIndex
-	s.mu.RUnlock()
+	tagIndex := s.NotesService.GetTagIndex()
 
 	// Get all notes that contain this tag
 	notesWithTag := tagIndex.GetNotesWithTag(tag)

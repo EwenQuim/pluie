@@ -9,7 +9,7 @@ import (
 
 func TestLayout(t *testing.T) {
 	rs := Resource{
-		Tree: nil, // Layout doesn't use the tree directly
+		NotesService: nil, // Layout doesn't use the NotesService directly in this test
 	}
 
 	tests := []struct {

@@ -37,12 +37,11 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 	initialTagIndex := engine.BuildTagIndex(initialNotes)
 
 	// Create server with initial data
+	notesService := engine.NewNotesService(&initialNotesMap, initialTree, initialTagIndex)
 	server := &Server{
-		NotesMap: &initialNotesMap,
-		Tree:     initialTree,
-		TagIndex: initialTagIndex,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: initialTree,
+			NotesService: notesService,
 		},
 		cfg: &config.Config{
 			PublicByDefault: true,
@@ -51,9 +50,7 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 	}
 
 	// Test 1: Verify initial data is accessible
-	server.mu.RLock()
-	notesMap1 := *server.NotesMap
-	server.mu.RUnlock()
+	notesMap1 := server.NotesService.GetNotesMap()
 
 	if len(notesMap1) != 2 {
 		t.Errorf("Expected 2 initial notes, got %d", len(notesMap1))
@@ -76,9 +73,7 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 		go func(readerId int) {
 			defer wg.Done()
 			for range 100 {
-				server.mu.RLock()
-				notesMap := *server.NotesMap
-				server.mu.RUnlock()
+				notesMap := server.NotesService.GetNotesMap()
 
 				// Verify we can always read valid data
 				if len(notesMap) == 0 {
@@ -139,10 +134,8 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 	}
 
 	// Test 3: Verify updated data is now accessible
-	server.mu.RLock()
-	notesMap2 := *server.NotesMap
-	tree2 := server.Tree
-	server.mu.RUnlock()
+	notesMap2 := server.NotesService.GetNotesMap()
+	tree2 := server.NotesService.GetTree()
 
 	if len(notesMap2) != 3 {
 		t.Errorf("Expected 3 updated notes, got %d", len(notesMap2))
@@ -171,9 +164,9 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 		t.Errorf("Expected 3 notes in updated tree, got %d", len(allNotes))
 	}
 
-	// Test 4: Verify resource tree was also updated
-	if server.rs.Tree != tree2 {
-		t.Error("Resource tree was not updated")
+	// Test 4: Verify resource has access to updated tree through NotesService
+	if server.rs.NotesService.GetTree() != tree2 {
+		t.Error("Resource NotesService tree was not updated")
 	}
 }
 
@@ -192,12 +185,11 @@ func TestServerReactiveConcurrentUpdates(t *testing.T) {
 	initialTree := engine.BuildTree(initialNotes)
 	initialTagIndex := engine.BuildTagIndex(initialNotes)
 
+	notesService := engine.NewNotesService(&initialNotesMap, initialTree, initialTagIndex)
 	server := &Server{
-		NotesMap: &initialNotesMap,
-		Tree:     initialTree,
-		TagIndex: initialTagIndex,
+		NotesService: notesService,
 		rs: template.Resource{
-			Tree: initialTree,
+			NotesService: notesService,
 		},
 		cfg: &config.Config{
 			PublicByDefault: true,
@@ -241,10 +233,8 @@ func TestServerReactiveConcurrentUpdates(t *testing.T) {
 	wg.Wait()
 
 	// Verify server is still in a consistent state
-	server.mu.RLock()
-	notesMap := *server.NotesMap
-	tree := server.Tree
-	server.mu.RUnlock()
+	notesMap := server.NotesService.GetNotesMap()
+	tree := server.NotesService.GetTree()
 
 	if len(notesMap) != 1 {
 		t.Errorf("Expected 1 note after updates, got %d", len(notesMap))
