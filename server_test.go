@@ -35,9 +35,7 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 	notesService := engine.NewNotesService(&publicNotesMap, tree, nil)
 	server := Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			PublicByDefault: false,
 			HomeNoteSlug:    "",
@@ -176,9 +174,7 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 			notesService := engine.NewNotesService(&tt.notesMap, tree, nil)
 			server := Server{
 				NotesService: notesService,
-				rs: template.Resource{
-					NotesService: notesService,
-				},
+				rs:           template.Resource{},
 				cfg: &config.Config{
 					PublicByDefault: false,
 					HomeNoteSlug:    tt.homeNoteSlug,

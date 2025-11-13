@@ -33,9 +33,7 @@ func TestServerPointerIntegration(t *testing.T) {
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	server := Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			PublicByDefault: true,
 			Port:            "8080",
@@ -141,9 +139,7 @@ func TestServerPointerIntegrationWithPrivateNote(t *testing.T) {
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	server := Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			PublicByDefault: false, // Private by default
 			Port:            "8080",

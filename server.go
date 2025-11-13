@@ -88,16 +88,16 @@ func (s *Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	note, ok := s.NotesService.GetNote(slug)
 	if !ok {
 		slog.Info("Note not found", "slug", slug)
-		return s.rs.NoteWithList(nil, searchQuery)
+		return s.rs.NoteWithList(s.NotesService, nil, searchQuery)
 	}
 
 	// Additional security check: ensure note is public
 	if !s.cfg.PublicByDefault && !note.IsPublic {
 		slog.Info("Private note access denied", "slug", slug)
-		return s.rs.NoteWithList(nil, searchQuery)
+		return s.rs.NoteWithList(s.NotesService, nil, searchQuery)
 	}
 
-	return s.rs.NoteWithList(&note, searchQuery)
+	return s.rs.NoteWithList(s.NotesService, &note, searchQuery)
 }
 
 func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
@@ -105,7 +105,7 @@ func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 
 	if tag == "" {
 		slog.Info("Empty tag parameter")
-		return s.rs.TagList("", nil)
+		return s.rs.TagList(s.NotesService, "", nil)
 	}
 
 	tagIndex := s.NotesService.GetTagIndex()
@@ -118,5 +118,5 @@ func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 
 	slog.Info("Tag search", "tag", tag, "notes_found", len(notesWithTag), "related_tags", len(relatedTags))
 
-	return s.rs.TagList(tag, notesWithTag)
+	return s.rs.TagList(s.NotesService, tag, notesWithTag)
 }

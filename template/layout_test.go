@@ -8,9 +8,7 @@ import (
 )
 
 func TestLayout(t *testing.T) {
-	rs := Resource{
-		NotesService: nil, // Layout doesn't use the NotesService directly in this test
-	}
+	rs := Resource{} // Layout doesn't need NotesService
 
 	tests := []struct {
 		name string

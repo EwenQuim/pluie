@@ -118,9 +118,7 @@ func TestServerStart(t *testing.T) {
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	server := Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			Port:            "0", // Use port 0 to get a random available port
 			PublicByDefault: false,
@@ -153,9 +151,7 @@ func TestServerGetNote(t *testing.T) {
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
 	server := Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			PublicByDefault: false,
 			HomeNoteSlug:    "home",
@@ -219,9 +215,7 @@ func TestGetHomeNoteSlugEdgeCases(t *testing.T) {
 			notesService := engine.NewNotesService(&tt.notesMap, tree, nil)
 			server := Server{
 				NotesService: notesService,
-				rs: template.Resource{
-					NotesService: notesService,
-				},
+				rs:           template.Resource{},
 				cfg: &config.Config{
 					PublicByDefault: false,
 					HomeNoteSlug:    tt.homeNoteSlug,

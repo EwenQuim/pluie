@@ -40,9 +40,7 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 	notesService := engine.NewNotesService(&initialNotesMap, initialTree, initialTagIndex)
 	server := &Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			PublicByDefault: true,
 			HomeNoteSlug:    "",
@@ -164,9 +162,9 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 		t.Errorf("Expected 3 notes in updated tree, got %d", len(allNotes))
 	}
 
-	// Test 4: Verify resource has access to updated tree through NotesService
-	if server.rs.NotesService.GetTree() != tree2 {
-		t.Error("Resource NotesService tree was not updated")
+	// Test 4: Verify NotesService tree was updated
+	if server.NotesService.GetTree() != tree2 {
+		t.Error("NotesService tree was not updated")
 	}
 }
 
@@ -188,9 +186,7 @@ func TestServerReactiveConcurrentUpdates(t *testing.T) {
 	notesService := engine.NewNotesService(&initialNotesMap, initialTree, initialTagIndex)
 	server := &Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
+		rs:           template.Resource{},
 		cfg: &config.Config{
 			PublicByDefault: true,
 		},

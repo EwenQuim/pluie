@@ -29,10 +29,8 @@ func main() {
 
 	server := &Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
-		cfg: cfg,
+		rs:           template.Resource{},
+		cfg:          cfg,
 	}
 
 	// Start file watcher if enabled

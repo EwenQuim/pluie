@@ -17,7 +17,8 @@ import (
 )
 
 type Resource struct {
-	NotesService *engine.NotesService
+	// Resource is stateless and only contains rendering logic
+	// Data is passed as parameters to methods
 }
 
 // MapMap creates nodes from a map
@@ -425,7 +426,7 @@ func renderYamlValue(value any) gomponents.Node {
 }
 
 // NoteWithList displays a note with the list of all notes on the left side
-func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponents.Node, error) {
+func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.Note, searchQuery string) (gomponents.Node, error) {
 
 	matter := map[string]any{}
 	var content []byte
@@ -435,7 +436,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 
 	if note != nil {
 		// Parse wikilinks in metadata before using it
-		matter = engine.ParseWikiLinksInMetadata(note.Metadata, rs.NotesService.GetTree())
+		matter = engine.ParseWikiLinksInMetadata(note.Metadata, notesService.GetTree())
 		// Also parse tag links in metadata
 		matter = engine.ParseTagLinksInMetadata(matter)
 		slug = note.Slug
@@ -448,7 +449,7 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	}
 
 	// Parse wiki-style links before markdown processing
-	parsedContent := engine.ParseWikiLinks(string(content), rs.NotesService.GetTree())
+	parsedContent := engine.ParseWikiLinks(string(content), notesService.GetTree())
 
 	// Parse hashtags to clickable links
 	parsedContent = engine.ParseHashtagLinks(parsedContent)
@@ -462,9 +463,9 @@ func (rs Resource) NoteWithList(note *model.Note, searchQuery string) (gomponent
 	tocItems := extractHeadings(parsedContent)
 
 	// Filter tree based on search query
-	displayTree := rs.NotesService.GetTree()
+	displayTree := notesService.GetTree()
 	if searchQuery != "" {
-		displayTree = engine.FilterTreeBySearch(rs.NotesService.GetTree(), searchQuery)
+		displayTree = engine.FilterTreeBySearch(notesService.GetTree(), searchQuery)
 	}
 
 	// Get site title, icon, and description from environment variables
@@ -748,7 +749,7 @@ func countNotesInTree(node *engine.TreeNode) int {
 }
 
 // TagList displays all notes that contain a specific tag
-func (rs Resource) TagList(tag string, notes []model.Note) (gomponents.Node, error) {
+func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes []model.Note) (gomponents.Node, error) {
 	// Get site title, icon, and description from environment variables
 	siteTitle := os.Getenv("SITE_TITLE")
 	if siteTitle == "" {
@@ -878,10 +879,10 @@ func (rs Resource) TagList(tag string, notes []model.Note) (gomponents.Node, err
 					Div(
 						ID("notes-list"),
 						Class(""),
-						g.If(rs.NotesService.GetTree() != nil && len(rs.NotesService.GetTree().Children) > 0,
+						g.If(notesService.GetTree() != nil && len(notesService.GetTree().Children) > 0,
 							Ul(
 								Class(""),
-								g.Group(g.Map(rs.NotesService.GetTree().Children, func(child *engine.TreeNode) gomponents.Node {
+								g.Group(g.Map(notesService.GetTree().Children, func(child *engine.TreeNode) gomponents.Node {
 									return rs.renderTreeNode(child, "")
 								})),
 							),

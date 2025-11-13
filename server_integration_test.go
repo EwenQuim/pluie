@@ -50,10 +50,8 @@ This is the initial content.
 	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
 	server := &Server{
 		NotesService: notesService,
-		rs: template.Resource{
-			NotesService: notesService,
-		},
-		cfg: cfg,
+		rs:           template.Resource{},
+		cfg:          cfg,
 	}
 
 	// Start file watcher
