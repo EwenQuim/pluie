@@ -436,7 +436,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 
 	if note != nil {
 		// Parse wikilinks in metadata before using it
-		matter = engine.ParseWikiLinksInMetadata(note.Metadata, notesService.GetTree())
+		matter = notesService.ParseWikiLinksInMetadata(note.Metadata)
 		// Also parse tag links in metadata
 		matter = engine.ParseTagLinksInMetadata(matter)
 		slug = note.Slug
@@ -449,7 +449,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 	}
 
 	// Parse wiki-style links before markdown processing
-	parsedContent := engine.ParseWikiLinks(string(content), notesService.GetTree())
+	parsedContent := notesService.ParseWikiLinks(string(content))
 
 	// Parse hashtags to clickable links
 	parsedContent = engine.ParseHashtagLinks(parsedContent)
@@ -465,7 +465,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 	// Filter tree based on search query
 	displayTree := notesService.GetTree()
 	if searchQuery != "" {
-		displayTree = engine.FilterTreeBySearch(notesService.GetTree(), searchQuery)
+		displayTree = notesService.FilterTreeBySearch(searchQuery)
 	}
 
 	// Get site title, icon, and description from environment variables

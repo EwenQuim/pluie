@@ -188,6 +188,9 @@ func GetAllNotesFromTree(root *TreeNode) []model.Note {
 }
 
 // FilterTreeBySearch filters the tree to only show nodes that match the search query
+//
+// Deprecated: Use NotesService.FilterTreeBySearch(query) instead for cleaner syntax.
+// This function remains available for cases where you need to work with a tree directly.
 func FilterTreeBySearch(root *TreeNode, query string) *TreeNode {
 	if query == "" {
 		return root

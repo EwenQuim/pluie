@@ -75,3 +75,21 @@ func (ns *NotesService) GetNote(slug string) (model.Note, bool) {
 	note, ok := (*ns.notesMap)[slug]
 	return note, ok
 }
+
+// ParseWikiLinksInMetadata processes wikilinks in metadata values
+// This is a convenience method that wraps engine.ParseWikiLinksInMetadata
+func (ns *NotesService) ParseWikiLinksInMetadata(metadata map[string]any) map[string]any {
+	return ParseWikiLinksInMetadata(metadata, ns.GetTree())
+}
+
+// ParseWikiLinks processes wiki-style links in content
+// This is a convenience method that wraps engine.ParseWikiLinks
+func (ns *NotesService) ParseWikiLinks(content string) string {
+	return ParseWikiLinks(content, ns.GetTree())
+}
+
+// FilterTreeBySearch filters the tree to only show nodes matching the search query
+// This is a convenience method that wraps engine.FilterTreeBySearch
+func (ns *NotesService) FilterTreeBySearch(query string) *TreeNode {
+	return FilterTreeBySearch(ns.GetTree(), query)
+}

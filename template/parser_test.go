@@ -210,7 +210,7 @@ func TestParseWikiLinks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.ParseWikiLinks(tt.input, notesService.GetTree())
+			result := notesService.ParseWikiLinks(tt.input)
 			if result != tt.expected {
 				t.Errorf("parseWikiLinks() = %q, want %q", result, tt.expected)
 			}
@@ -232,7 +232,7 @@ func TestParseWikiLinksWithEmptyNotes(t *testing.T) {
 
 	input := "This [[Test Note]] should not be found."
 	expected := "This Test Note should not be found."
-	result := engine.ParseWikiLinks(input, notesService.GetTree())
+	result := notesService.ParseWikiLinks(input)
 
 	if result != expected {
 		t.Errorf("parseWikiLinks() with empty notes = %q, want %q", result, expected)
@@ -268,7 +268,7 @@ func TestParseWikiLinksPerformance(t *testing.T) {
 	content += "End"
 
 	// This should complete reasonably quickly
-	result := engine.ParseWikiLinks(content, notesService.GetTree())
+	result := notesService.ParseWikiLinks(content)
 
 	// Verify that some transformations occurred
 	if !strings.Contains(result, "[Note 0](/note-0)") {
@@ -379,6 +379,6 @@ func BenchmarkParseWikiLinks(b *testing.B) {
 	content := "This is a [[Test Note]] with [[Another Note]] and some [[Missing Link]] content."
 
 	for b.Loop() {
-		engine.ParseWikiLinks(content, notesService.GetTree())
+		notesService.ParseWikiLinks(content)
 	}
 }

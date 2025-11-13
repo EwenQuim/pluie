@@ -24,6 +24,9 @@ func RemoveCommentBlocks(content string) string {
 }
 
 // ParseWikiLinksInMetadata processes wikilinks in metadata values (strings and lists)
+//
+// Deprecated: Use NotesService.ParseWikiLinksInMetadata(metadata) instead for cleaner syntax.
+// This function remains available for cases where you need to work with a tree directly.
 func ParseWikiLinksInMetadata(metadata map[string]any, tree *TreeNode) map[string]any {
 	if metadata == nil {
 		return metadata
