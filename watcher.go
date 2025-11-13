@@ -45,6 +45,8 @@ func loadNotes(basePath string, cfg *config.Config) (*map[string]model.Note, *en
 	// Build tag index with public notes only
 	tagIndex := engine.BuildTagIndex(publicNotes)
 
+	slog.Info("Loaded notes", "total_time", time.Since(start).String(), "count", len(publicNotes))
+
 	return &notesMap, tree, tagIndex, nil
 }
 
