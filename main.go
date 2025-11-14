@@ -23,6 +23,12 @@ func main() {
 	logger := log.New(os.Stderr)
 	logger.SetReportTimestamp(true)
 	logger.SetReportCaller(false)
+
+	// Use JSON logging if LOG_JSON=true
+	if os.Getenv("LOG_JSON") == "true" {
+		logger.SetFormatter(log.JSONFormatter)
+	}
+
 	slog.SetDefault(slog.New(logger))
 
 	// Load configuration

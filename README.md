@@ -85,6 +85,7 @@ SITE_TITLE="My Knowledge Base"
 PUBLIC_BY_DEFAULT=false    # Notes are private by default
 HOME_NOTE_SLUG=Index       # Landing page
 PORT=9999
+LOG_JSON=true              # Enable JSON logging (default: pretty logging)
 ```
 
 **Privacy control:**
