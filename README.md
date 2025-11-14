@@ -8,6 +8,9 @@
   <a href="https://goreportcard.com/report/github.com/EwenQuim/pluie">
     <img src="https://goreportcard.com/badge/github.com/EwenQuim/pluie" alt="Go Report Card">
   </a>
+  <a href="https://github.com/go-fuego/fuego">
+    <img src="https://img.shields.io/badge/built%20with-Fuego-red" alt="Built with Fuego">
+  </a>
 </p>
 
 A lightweight markdown wiki server that turns your Obsidian vault into a searchable website. Self-hosted, privacy-focused, and built in Go.
