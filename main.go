@@ -12,7 +12,8 @@ import (
 func main() {
 	path := flag.String("path", ".", "Path to the obsidian folder")
 	watch := flag.Bool("watch", true, "Enable file watching to auto-reload on changes")
-	mode := flag.String("mode", "server", "Mode to run in: server (default) or static")
+	mode := flag.String("mode", "server", "Mode to run in: server or static")
+	output := flag.String("output", "dist", "Output folder for static site generation")
 
 	flag.Parse()
 
@@ -30,12 +31,12 @@ func main() {
 
 	// Run in static mode if requested
 	if *mode == "static" {
-		err := generateStaticSite(notesService, cfg)
+		err := generateStaticSite(notesService, cfg, *output)
 		if err != nil {
 			slog.Error("Error generating static site", "error", err)
 			return
 		}
-		slog.Info("Static site generated successfully in /dist folder")
+		slog.Info("Static site generated successfully", "folder", *output)
 		return
 	}
 
