@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"log/slog"
+	"os"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/template"
+	"github.com/charmbracelet/log"
 )
 
 func main() {
@@ -16,6 +18,12 @@ func main() {
 	output := flag.String("output", "dist", "Output folder for static site generation")
 
 	flag.Parse()
+
+	// Setup charmbracelet/log as slog handler
+	logger := log.New(os.Stderr)
+	logger.SetReportTimestamp(true)
+	logger.SetReportCaller(false)
+	slog.SetDefault(slog.New(logger))
 
 	// Load configuration
 	cfg := config.Load()
