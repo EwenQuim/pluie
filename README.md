@@ -1,6 +1,14 @@
 # Pluie 🌧️
 
-![](./static/pluie.webp)
+<p align="center">
+  <img src="./static/pluie.webp" alt="Pluie" width="400">
+</p>
+
+<p align="center">
+  <a href="https://goreportcard.com/report/github.com/EwenQuim/pluie">
+    <img src="https://goreportcard.com/badge/github.com/EwenQuim/pluie" alt="Go Report Card">
+  </a>
+</p>
 
 A lightweight markdown wiki server that turns your Obsidian vault into a searchable website. Self-hosted, privacy-focused, and built in Go.
 
