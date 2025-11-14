@@ -173,6 +173,9 @@ func FindNoteInTree(root *TreeNode, slug string) *TreeNode {
 }
 
 // GetAllNotesFromTree extracts all notes from the tree structure
+//
+// Deprecated: Use NotesService.GetAllNotes() instead for cleaner syntax and thread-safe access.
+// This function remains available for cases where you need to work with a tree directly.
 func GetAllNotesFromTree(root *TreeNode) []model.Note {
 	var notes []model.Note
 

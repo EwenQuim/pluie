@@ -83,7 +83,7 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				slug := r.URL.Path[1:] // Remove leading slash
 				if slug == "" {
-					slug = server.getHomeNoteSlug()
+					slug = server.NotesService.GetHomeSlug(server.cfg.HomeNoteSlug)
 				}
 
 				note, ok := server.NotesService.GetNote(slug)
@@ -181,7 +181,7 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 				},
 			}
 
-			result := server.getHomeNoteSlug()
+			result := server.NotesService.GetHomeSlug(server.cfg.HomeNoteSlug)
 			if result != tt.expected {
 				t.Errorf("Expected home note slug %q, got %q", tt.expected, result)
 			}

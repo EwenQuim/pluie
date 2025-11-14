@@ -222,7 +222,7 @@ func TestGetHomeNoteSlugEdgeCases(t *testing.T) {
 				},
 			}
 
-			result := server.getHomeNoteSlug()
+			result := server.NotesService.GetHomeSlug(server.cfg.HomeNoteSlug)
 			if result != tt.expected {
 				t.Errorf("Expected home note slug %q, got %q", tt.expected, result)
 			}

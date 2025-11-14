@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/EwenQuim/pluie/config"
@@ -36,7 +35,7 @@ func generateStaticSite(notesService *engine.NotesService, cfg *config.Config, d
 	}
 
 	// Get home note slug
-	homeNoteSlug := getHomeNoteSlug(notesService, cfg)
+	homeNoteSlug := notesService.GetHomeSlug(cfg.HomeNoteSlug)
 
 	// Generate home page (index.html)
 	if err := generateHomePage(notesService, rs, homeNoteSlug, distFolder); err != nil {
@@ -55,30 +54,6 @@ func generateStaticSite(notesService *engine.NotesService, cfg *config.Config, d
 
 	slog.Info("Static site generation complete")
 	return nil
-}
-
-// getHomeNoteSlug determines the home note slug based on priority
-func getHomeNoteSlug(notesService *engine.NotesService, cfg *config.Config) string {
-	// Priority 1: Check HOME_NOTE_SLUG configuration
-	if cfg.HomeNoteSlug != "" {
-		if _, exists := notesService.GetNote(cfg.HomeNoteSlug); exists {
-			return cfg.HomeNoteSlug
-		}
-	}
-
-	// Priority 2: First note in alphabetical order
-	tree := notesService.GetTree()
-	if tree != nil {
-		notes := engine.GetAllNotesFromTree(tree)
-		if len(notes) > 0 {
-			sort.Slice(notes, func(i, j int) bool {
-				return notes[i].Slug < notes[j].Slug
-			})
-			return notes[0].Slug
-		}
-	}
-
-	return ""
 }
 
 // generateHomePage generates the home page at /output/index.html
@@ -110,13 +85,12 @@ func generateHomePage(notesService *engine.NotesService, rs template.Resource, h
 
 // generateNotePages generates HTML pages for all public notes
 func generateNotePages(notesService *engine.NotesService, rs template.Resource, cfg *config.Config, distFolder string) error {
-	tree := notesService.GetTree()
-	if tree == nil {
-		slog.Warn("No tree found, skipping note pages")
+	notes := notesService.GetAllNotes()
+	if len(notes) == 0 {
+		slog.Warn("No notes found, skipping note pages")
 		return nil
 	}
 
-	notes := engine.GetAllNotesFromTree(tree)
 	slog.Info("Generating note pages", "count", len(notes))
 
 	for _, note := range notes {

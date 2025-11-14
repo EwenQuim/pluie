@@ -296,7 +296,7 @@ func createTestHandler(server *Server) http.Handler {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		slug := strings.TrimPrefix(r.URL.Path, "/")
 		if slug == "" {
-			slug = server.getHomeNoteSlug()
+			slug = server.NotesService.GetHomeSlug(server.cfg.HomeNoteSlug)
 		}
 
 		note, ok := server.NotesService.GetNote(slug)

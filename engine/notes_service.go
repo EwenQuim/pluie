@@ -2,6 +2,7 @@ package engine
 
 import (
 	"log/slog"
+	"sort"
 	"sync"
 
 	"github.com/EwenQuim/pluie/model"
@@ -92,4 +93,39 @@ func (ns *NotesService) ParseWikiLinks(content string) string {
 // This is a convenience method that wraps engine.FilterTreeBySearch
 func (ns *NotesService) FilterTreeBySearch(query string) *TreeNode {
 	return FilterTreeBySearch(ns.GetTree(), query)
+}
+
+// GetAllNotes extracts all notes from the tree structure
+// This is a convenience method that wraps engine.GetAllNotesFromTree
+func (ns *NotesService) GetAllNotes() []model.Note {
+	tree := ns.GetTree()
+	if tree == nil {
+		return []model.Note{}
+	}
+	return GetAllNotesFromTree(tree)
+}
+
+// GetHomeSlug determines the home note slug based on priority:
+// 1. The provided homeNoteSlug config value (if it exists in notes)
+// 2. First note in alphabetical order
+// 3. Empty string if no notes exist
+func (ns *NotesService) GetHomeSlug(homeNoteSlug string) string {
+	// Priority 1: Check provided homeNoteSlug configuration
+	if homeNoteSlug != "" {
+		if _, exists := ns.GetNote(homeNoteSlug); exists {
+			return homeNoteSlug
+		}
+	}
+
+	// Priority 2: First note in alphabetical order
+	notes := ns.GetAllNotes()
+	if len(notes) > 0 {
+		sort.Slice(notes, func(i, j int) bool {
+			return notes[i].Slug < notes[j].Slug
+		})
+		return notes[0].Slug
+	}
+
+	// Fallback: no notes available
+	return ""
 }

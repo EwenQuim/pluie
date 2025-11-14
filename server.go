@@ -3,7 +3,6 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	"sort"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -19,34 +18,6 @@ type Server struct {
 	NotesService *engine.NotesService
 	rs           template.Resource
 	cfg          *config.Config
-}
-
-// getHomeNoteSlug determines the home note slug based on priority:
-// 1. HOME_NOTE_SLUG config value
-// 2. First note in alphabetical order
-func (s *Server) getHomeNoteSlug() string {
-	// Priority 1: Check HOME_NOTE_SLUG configuration
-	if s.cfg.HomeNoteSlug != "" {
-		if _, exists := s.NotesService.GetNote(s.cfg.HomeNoteSlug); exists {
-			return s.cfg.HomeNoteSlug
-		}
-	}
-
-	// Priority 2: First note in alphabetical order
-	tree := s.NotesService.GetTree()
-	if tree != nil {
-		// Get all notes from tree and sort by slug
-		notes := engine.GetAllNotesFromTree(tree)
-		if len(notes) > 0 {
-			sort.Slice(notes, func(i, j int) bool {
-				return notes[i].Slug < notes[j].Slug
-			})
-			return notes[0].Slug
-		}
-	}
-
-	// Fallback (should not happen if there are notes)
-	return ""
 }
 
 // UpdateData safely updates the server's NotesMap, Tree, and TagIndex with new data
@@ -82,7 +53,7 @@ func (s *Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	searchQuery := ctx.QueryParam("search")
 
 	if slug == "" {
-		slug = s.getHomeNoteSlug()
+		slug = s.NotesService.GetHomeSlug(s.cfg.HomeNoteSlug)
 	}
 
 	note, ok := s.NotesService.GetNote(slug)
