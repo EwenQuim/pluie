@@ -15,6 +15,10 @@ import (
 	"github.com/adrg/frontmatter"
 )
 
+var (
+	h1Regex = regexp.MustCompile(`^#\s+(.+)$`)
+)
+
 type Explorer struct {
 	BasePath string
 }
@@ -177,8 +181,6 @@ func ParseMetadataAndContent(content []byte) (map[string]any, string, error) {
 // extractH1TitleFromContent extracts the first H1 heading from markdown content and removes it
 // Returns the extracted title and the content with the H1 removed
 func extractH1TitleFromContent(content string) (title string, modifiedContent string) {
-	h1Regex := regexp.MustCompile(`^#\s+(.+)$`)
-
 	lines := strings.Split(content, "\n")
 	resultLines := make([]string, 0, len(lines))
 	titleFound := false

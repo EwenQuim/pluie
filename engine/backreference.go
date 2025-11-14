@@ -64,26 +64,30 @@ func extractWikiLinks(content string) []string {
 	var links []string
 	seen := make(map[string]bool)
 
-	matches := wikiLinkRegex.FindAllStringSubmatch(content, -1)
-	for _, match := range matches {
-		if len(match) < 2 {
+	// Use FindAllStringSubmatchIndex for better performance - returns positions instead of creating substrings
+	matchIndices := wikiLinkRegex.FindAllStringSubmatchIndex(content, -1)
+	for _, match := range matchIndices {
+		if len(match) < 4 {
 			continue
 		}
 
+		matchStart := match[0]
+		matchEnd := match[1]
+		innerStart := match[2]
+		innerEnd := match[3]
+
 		// Check if this match is part of a triple bracket pattern [[[...]]]
-		fullMatch := match[0]
-		matchStart := strings.Index(content, fullMatch)
 		if matchStart > 0 && content[matchStart-1] == '[' {
 			// This is part of [[[...]], skip it
 			continue
 		}
-		if matchStart+len(fullMatch) < len(content) && content[matchStart+len(fullMatch)] == ']' {
+		if matchEnd < len(content) && content[matchEnd] == ']' {
 			// This is part of [...]]]], skip it
 			continue
 		}
 
 		// Extract the content from [[content]]
-		innerContent := strings.Trim(match[1], " ")
+		innerContent := strings.TrimSpace(content[innerStart:innerEnd])
 
 		// Handle empty wiki links
 		if innerContent == "" {
@@ -92,9 +96,8 @@ func extractWikiLinks(content string) []string {
 
 		// Extract the target title (before the | if present)
 		var targetTitle string
-		if strings.Contains(innerContent, "|") {
-			parts := strings.SplitN(innerContent, "|", 2)
-			targetTitle = strings.TrimSpace(parts[0])
+		if pipeIdx := strings.IndexByte(innerContent, '|'); pipeIdx != -1 {
+			targetTitle = strings.TrimSpace(innerContent[:pipeIdx])
 		} else {
 			targetTitle = innerContent
 		}
