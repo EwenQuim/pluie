@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
 	"os"
@@ -42,6 +43,16 @@ func main() {
 	}
 
 	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
+
+	// Embed notes into Weaviate in background
+	go func() {
+		ctx := context.Background()
+		allNotes := notesService.GetAllNotes()
+		if err := embedNotes(ctx, allNotes); err != nil {
+			slog.Error("Error embedding notes", "error", err)
+			// Continue anyway - the server can still work without embeddings
+		}
+	}()
 
 	// Run in static mode if requested
 	if *mode == "static" {

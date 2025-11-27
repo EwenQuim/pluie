@@ -3,4 +3,5 @@ tmp
 .DS_Store
 pluie
 dist
+embeddings_tracking.json
 

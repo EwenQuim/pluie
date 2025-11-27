@@ -10,8 +10,9 @@ WORKDIR /app
 # Copy go mod files
 COPY go.mod go.sum ./
 
-# Download dependencies
-RUN go mod download
+# Download dependencies with module cache
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 # Copy source code
 COPY . .
@@ -22,8 +23,10 @@ RUN npm install --no-save tailwindcss@^4.0.0 @tailwindcss/cli@^4.0.0 @tailwindcs
 # Build Tailwind CSS
 RUN npx @tailwindcss/cli -i ./src/input.css -o ./static/tailwind.min.css --minify
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+# Build the application with build cache
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # Final stage
 FROM alpine:latest
