@@ -252,5 +252,7 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 				})
 			}(),
 		),
+		// Embedding progress indicator at the bottom (using HTMX SSE with OOB swaps)
+		RenderEmbeddingProgressIndicator(),
 	)
 }

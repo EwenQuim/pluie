@@ -44,6 +44,9 @@ func main() {
 
 	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
 
+	// Initialize embedding progress tracker
+	embeddingProgress := NewEmbeddingProgress()
+
 	// Initialize Weaviate store for search
 	wvStore, err := initializeWeaviateStore()
 	if err != nil {
@@ -56,7 +59,7 @@ func main() {
 		go func() {
 			ctx := context.Background()
 			allNotes := notesService.GetAllNotes()
-			if err := embedNotes(ctx, wvStore, allNotes); err != nil {
+			if err := embedNotesWithProgress(ctx, wvStore, allNotes, embeddingProgress); err != nil {
 				slog.Error("Error embedding notes", "error", err)
 				// Continue anyway - the server can still work without embeddings
 			}
@@ -85,11 +88,12 @@ func main() {
 
 	// Otherwise run in server mode
 	server := &Server{
-		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg:          cfg,
-		wvStore:      wvStore,
-		chatClient:   chatClient,
+		NotesService:      notesService,
+		rs:                template.Resource{},
+		cfg:               cfg,
+		wvStore:           wvStore,
+		chatClient:        chatClient,
+		embeddingProgress: embeddingProgress,
 	}
 
 	// Start file watcher if enabled

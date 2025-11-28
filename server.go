@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -18,11 +20,12 @@ import (
 )
 
 type Server struct {
-	NotesService *engine.NotesService
-	rs           template.Resource
-	cfg          *config.Config
-	wvStore      *weaviate.Store // Vector store for semantic search
-	chatClient   llms.Model      // Chat client for AI responses
+	NotesService      *engine.NotesService
+	rs                template.Resource
+	cfg               *config.Config
+	wvStore           *weaviate.Store    // Vector store for semantic search
+	chatClient        llms.Model         // Chat client for AI responses
+	embeddingProgress *EmbeddingProgress // Tracks embedding progress for SSE updates
 }
 
 // UpdateData safely updates the server's NotesMap, Tree, and TagIndex with new data
@@ -52,6 +55,9 @@ func (s *Server) Start() error {
 	fuego.Get(server, "/-/search-chat", s.getSearchChat,
 		option.Query("q", "Question to ask about your notes"),
 	)
+
+	// Embedding progress SSE route
+	fuego.GetStd(server, "/-/embedding-progress", s.getEmbeddingProgress)
 
 	// Tag route - must be registered before the catch-all route
 	fuego.Get(server, "/-/tag/{tag...}", s.getTag)
@@ -201,4 +207,63 @@ func (s *Server) getSearchChat(ctx fuego.ContextNoBody) (fuego.Renderer, error) 
 	}
 
 	return s.rs.SearchChatResults(s.NotesService, query, searchResults, aiResponse)
+}
+
+func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
+	// Set headers for SSE
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Get flusher for SSE
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		slog.Error("Streaming not supported")
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Subscribe to embedding progress updates
+	progressChan := s.embeddingProgress.Subscribe()
+	defer s.embeddingProgress.Unsubscribe(progressChan)
+
+	// Create a ticker for periodic updates (every 3 seconds)
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	// Helper function to send HTML update using gomponent
+	sendUpdate := func(status EmbeddingStatus) {
+		// Create progress data
+		data := template.EmbeddingProgressData{
+			Embedded:    status.EmbeddedNotes,
+			Total:       status.TotalNotes,
+			IsEmbedding: status.IsEmbedding,
+		}
+
+		// Render the progress content using the SAME gomponent as in navbar
+		progressNode := template.RenderEmbeddingProgressContent(data)
+
+		// Write SSE message
+		fmt.Fprint(w, "data: ")
+		progressNode.Render(w)
+		fmt.Fprint(w, "\n\n")
+		flusher.Flush()
+	}
+
+	// Send initial status immediately
+	sendUpdate(s.embeddingProgress.GetStatus())
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+			// Send periodic update
+			sendUpdate(s.embeddingProgress.GetStatus())
+		case status := <-progressChan:
+			// Send update when progress changes
+			sendUpdate(status)
+		}
+	}
 }
