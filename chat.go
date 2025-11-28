@@ -73,7 +73,11 @@ Based on the documents provided above, please answer the user's question. Be con
 	slog.Info("Generating chat response", "query", query, "num_docs", len(results))
 
 	// Generate response
-	response, err := llms.GenerateFromSinglePrompt(ctx, chatClient, prompt)
+	response, err := llms.GenerateFromSinglePrompt(ctx, chatClient, prompt,
+		llms.WithModel(chatModel),
+		llms.WithMaxTokens(1024),
+		llms.WithTemperature(0.7),
+	)
 	if err != nil {
 		return "", fmt.Errorf("generating chat response: %w", err)
 	}

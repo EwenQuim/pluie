@@ -60,19 +60,6 @@ func (rs Resource) SearchResults(notesService *engine.NotesService, query string
 				Class("text-gray-600 mb-4"),
 				g.Text("Enter a search query to find related notes using semantic search."),
 			),
-			Div(
-				Class("bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6"),
-				P(
-					Class("text-sm text-blue-800 mb-2"),
-					g.Text("💡 Try our new "),
-					A(
-						Href("/-/search-chat"),
-						Class("font-semibold underline hover:text-blue-900"),
-						g.Text("Search Chat"),
-					),
-					g.Text(" feature to ask questions and get AI-powered summaries of your notes!"),
-				),
-			),
 			searchForm("", true, ""),
 		)
 	} else if len(results) == 0 {

@@ -194,6 +194,17 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 				),
 				g.Text("Chat Search"),
 			),
+			// Live Chat Search link
+			A(
+				Href("/-/search-live-chat"),
+				Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors border border-green-200"),
+				g.Attr("hx-boost", "true"),
+				Span(
+					Class("text-base"),
+					g.Text("⚡"),
+				),
+				g.Text("Live Chat Search"),
+			),
 		),
 		// Fold/Unfold all buttons (only show if search form is shown, i.e., on note pages)
 		g.If(config.showSearchForm,
