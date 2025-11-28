@@ -9,7 +9,6 @@ import (
 
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
-	"github.com/maragudk/gomponents"
 	g "github.com/maragudk/gomponents"
 	. "github.com/maragudk/gomponents/html"
 
@@ -65,7 +64,7 @@ const (
 )
 
 // renderTreeNode renders a single tree node with its children
-func (rs Resource) renderTreeNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
+func (rs Resource) renderTreeNode(node *engine.TreeNode, currentSlug string) g.Node {
 	if node == nil {
 		return g.Text("")
 	}
@@ -77,7 +76,7 @@ func (rs Resource) renderTreeNode(node *engine.TreeNode, currentSlug string) gom
 }
 
 // renderFolderNode renders a folder tree node
-func (rs Resource) renderFolderNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
+func (rs Resource) renderFolderNode(node *engine.TreeNode, currentSlug string) g.Node {
 	return Li(
 		Class(""),
 		Div(
@@ -94,7 +93,7 @@ func (rs Resource) renderFolderNode(node *engine.TreeNode, currentSlug string) g
 }
 
 // renderNoteNode renders a note tree node
-func (rs Resource) renderNoteNode(node *engine.TreeNode, currentSlug string) gomponents.Node {
+func (rs Resource) renderNoteNode(node *engine.TreeNode, currentSlug string) g.Node {
 	isActive := node.Note != nil && node.Note.Slug == currentSlug
 	linkClass := inactiveLinkClass
 	if isActive {
@@ -113,7 +112,7 @@ func (rs Resource) renderNoteNode(node *engine.TreeNode, currentSlug string) gom
 }
 
 // renderChevronIcon renders the folder chevron icon
-func (rs Resource) renderChevronIcon(node *engine.TreeNode) gomponents.Node {
+func (rs Resource) renderChevronIcon(node *engine.TreeNode) g.Node {
 	return Span(
 		Class(chevronClass),
 		ID("chevron-"+node.Path),
@@ -123,7 +122,7 @@ func (rs Resource) renderChevronIcon(node *engine.TreeNode) gomponents.Node {
 }
 
 // renderFolderChildren renders the children container for a folder
-func (rs Resource) renderFolderChildren(node *engine.TreeNode, currentSlug string) gomponents.Node {
+func (rs Resource) renderFolderChildren(node *engine.TreeNode, currentSlug string) g.Node {
 	if len(node.Children) == 0 {
 		return g.Text("")
 	}
@@ -137,7 +136,7 @@ func (rs Resource) renderFolderChildren(node *engine.TreeNode, currentSlug strin
 		Class("ml-4"),
 		ID("folder-"+node.Path),
 		g.Attr("style", displayStyle),
-		g.Group(g.Map(node.Children, func(child *engine.TreeNode) gomponents.Node {
+		g.Group(g.Map(node.Children, func(child *engine.TreeNode) g.Node {
 			return rs.renderTreeNode(child, currentSlug)
 		})),
 	)
@@ -199,9 +198,9 @@ func extractHeadings(content string) []TOCItem {
 }
 
 // renderTOC renders the table of contents as HTML nodes
-func renderTOC(tocItems []TOCItem) []gomponents.Node {
+func renderTOC(tocItems []TOCItem) []g.Node {
 	if len(tocItems) == 0 {
-		return []gomponents.Node{
+		return []g.Node{
 			P(
 				Class("text-sm text-gray-500 italic"),
 				g.Text("No headings found"),
@@ -209,7 +208,7 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 		}
 	}
 
-	var nodes []gomponents.Node
+	var nodes []g.Node
 
 	for _, item := range tocItems {
 		// Calculate indentation based on heading level
@@ -259,7 +258,7 @@ func renderTOC(tocItems []TOCItem) []gomponents.Node {
 }
 
 // renderYamlProperty renders a YAML property with appropriate HTML based on its type
-func renderYamlProperty(key string, value any) gomponents.Node {
+func renderYamlProperty(key string, value any) g.Node {
 	return Div(
 		Class("flex flex-row items-center py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-150 hover:bg-gray-50"),
 		Dt(
@@ -274,7 +273,7 @@ func renderYamlProperty(key string, value any) gomponents.Node {
 }
 
 // renderYamlValue renders a YAML value with appropriate HTML based on its type
-func renderYamlValue(value any) gomponents.Node {
+func renderYamlValue(value any) g.Node {
 	switch v := value.(type) {
 	case bool:
 		// Render boolean as a checkbox-style indicator
@@ -301,7 +300,7 @@ func renderYamlValue(value any) gomponents.Node {
 		}
 		return Div(
 			Class("flex flex-wrap gap-1"),
-			g.Group(g.Map(v, func(item interface{}) gomponents.Node {
+			g.Group(g.Map(v, func(item interface{}) g.Node {
 				itemStr := fmt.Sprintf("%v", item)
 				// Check if the item contains markdown links (parsed wikilinks)
 				if strings.Contains(itemStr, "](") && strings.Contains(itemStr, "[") {
@@ -328,7 +327,7 @@ func renderYamlValue(value any) gomponents.Node {
 			Class("bg-gray-50 border border-gray-200 rounded-md p-3"),
 			Dl(
 				Class("space-y-2"),
-				g.Group(MapMapSorted(v, func(nestedKey string, nestedValue any) gomponents.Node {
+				g.Group(MapMapSorted(v, func(nestedKey string, nestedValue any) g.Node {
 					return Div(
 						Class("flex flex-col sm:flex-row sm:items-center"),
 						Dt(
@@ -426,7 +425,7 @@ func renderYamlValue(value any) gomponents.Node {
 }
 
 // NoteWithList displays a note with the list of all notes on the left side
-func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.Note, searchQuery string) (gomponents.Node, error) {
+func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.Note, searchQuery string) (g.Node, error) {
 
 	matter := map[string]any{}
 	var content []byte
@@ -553,7 +552,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 				Form(
 					Method("GET"),
 					Action("/"+slug),
-					Class("mb-6"),
+					Class("mb-1"),
 					g.Attr("hx-boost", "true"),
 					g.Attr("hx-push-url", "true"),
 					g.Attr("hx-target", "#notes-list"),
@@ -590,6 +589,13 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 						),
 					),
 				),
+				// Semantic search link
+				A(
+					Href("/-/search"),
+					Class("mb-6 inline-flex px-3 text-sm italic hover:underline rounded-md transition-colors"),
+					g.Attr("hx-boost", "true"),
+					g.Text("Use Semantic Search"),
+				),
 				// Fold/Unfold all buttons
 				Div(
 					Class("mb-4 flex gap-2"),
@@ -621,7 +627,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 						g.If(displayTree != nil && len(displayTree.Children) > 0,
 							Ul(
 								Class(""),
-								g.Group(g.Map(displayTree.Children, func(child *engine.TreeNode) gomponents.Node {
+								g.Group(g.Map(displayTree.Children, func(child *engine.TreeNode) g.Node {
 									return rs.renderTreeNode(child, slug)
 								})),
 							),
@@ -671,7 +677,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 							Div(
 								Dl(
 									Class("grid grid-cols-1"),
-									g.Group(MapMapSorted(matter, func(key string, value any) gomponents.Node {
+									g.Group(MapMapSorted(matter, func(key string, value any) g.Node {
 										return renderYamlProperty(key, value)
 									})),
 								),
@@ -693,7 +699,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 						),
 						Ul(
 							Class("space-y-2"),
-							g.Group(g.Map(referencedBy, func(ref model.NoteReference) gomponents.Node {
+							g.Group(g.Map(referencedBy, func(ref model.NoteReference) g.Node {
 								return Li(
 									A(
 										Href("/"+ref.Slug),
@@ -749,7 +755,7 @@ func countNotesInTree(node *engine.TreeNode) int {
 }
 
 // TagList displays all notes that contain a specific tag
-func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes []model.Note) (gomponents.Node, error) {
+func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes []model.Note) (g.Node, error) {
 	// Get site title, icon, and description from environment variables
 	siteTitle := os.Getenv("SITE_TITLE")
 	if siteTitle == "" {
@@ -759,7 +765,7 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 	siteDescription := os.Getenv("SITE_DESCRIPTION")
 
 	var title string
-	var content gomponents.Node
+	var content g.Node
 
 	if tag == "" {
 		title = "Tag not found"
@@ -783,7 +789,7 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 			),
 			Div(
 				Class("grid gap-4 md:grid-cols-2 lg:grid-cols-3"),
-				g.Group(g.Map(notes, func(note model.Note) gomponents.Node {
+				g.Group(g.Map(notes, func(note model.Note) g.Node {
 					return rs.renderNoteCard(note)
 				})),
 			),
@@ -858,9 +864,20 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 					// Site description
 					g.If(siteDescription != "",
 						P(
-							Class("text-sm text-gray-500 italic"),
+							Class("text-sm text-gray-500 italic mb-3"),
 							g.Text(siteDescription),
 						),
+					),
+					// Semantic search link
+					A(
+						Href("/-/search"),
+						Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"),
+						g.Attr("hx-boost", "true"),
+						Span(
+							Class("text-base"),
+							g.Text("🔍"),
+						),
+						g.Text("Semantic Search"),
 					),
 				),
 				// Back to home link
@@ -882,7 +899,7 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 						g.If(notesService.GetTree() != nil && len(notesService.GetTree().Children) > 0,
 							Ul(
 								Class(""),
-								g.Group(g.Map(notesService.GetTree().Children, func(child *engine.TreeNode) gomponents.Node {
+								g.Group(g.Map(notesService.GetTree().Children, func(child *engine.TreeNode) g.Node {
 									return rs.renderTreeNode(child, "")
 								})),
 							),
@@ -904,7 +921,7 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 }
 
 // renderNoteCard renders a single note as a card for the tag list view
-func (rs Resource) renderNoteCard(note model.Note) gomponents.Node {
+func (rs Resource) renderNoteCard(note model.Note) g.Node {
 	// Extract first few lines of content for description
 	description := extractDescription(note.Content)
 

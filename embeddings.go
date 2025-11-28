@@ -104,7 +104,7 @@ func (t *EmbeddingsTracker) markAsEmbedded(note model.Note, lastModified time.Ti
 }
 
 // initializeWeaviateStore creates and initializes the Weaviate store
-func initializeWeaviateStore() (weaviate.Store, error) {
+func initializeWeaviateStore() (*weaviate.Store, error) {
 	// Get Weaviate configuration from environment or use defaults
 	wvHost := os.Getenv("WEAVIATE_HOST")
 	if wvHost == "" {
@@ -133,12 +133,12 @@ func initializeWeaviateStore() (weaviate.Store, error) {
 		ollama.WithModel(embeddingsModel),
 	)
 	if err != nil {
-		return weaviate.Store{}, fmt.Errorf("creating ollama client: %w", err)
+		return nil, fmt.Errorf("creating ollama client: %w", err)
 	}
 
 	emb, err := embeddings.NewEmbedder(embeddingsClient)
 	if err != nil {
-		return weaviate.Store{}, fmt.Errorf("creating embedder: %w", err)
+		return nil, fmt.Errorf("creating embedder: %w", err)
 	}
 
 	// Create Weaviate store
@@ -149,14 +149,14 @@ func initializeWeaviateStore() (weaviate.Store, error) {
 		weaviate.WithIndexName(indexName),
 	)
 	if err != nil {
-		return weaviate.Store{}, fmt.Errorf("creating weaviate store: %w", err)
+		return nil, fmt.Errorf("creating weaviate store: %w", err)
 	}
 
-	return wvStore, nil
+	return &wvStore, nil
 }
 
 // embedNotes embeds notes into Weaviate, only processing new or changed notes
-func embedNotes(ctx context.Context, notes []model.Note) error {
+func embedNotes(ctx context.Context, wvStore *weaviate.Store, notes []model.Note) error {
 	start := time.Now()
 
 	// Load tracking file
@@ -184,12 +184,6 @@ func embedNotes(ctx context.Context, notes []model.Note) error {
 		"total_notes", len(notes),
 		"already_embedded", len(notes)-len(notesToEmbed),
 		"to_embed", len(notesToEmbed))
-
-	// Initialize Weaviate store
-	wvStore, err := initializeWeaviateStore()
-	if err != nil {
-		return fmt.Errorf("initializing weaviate: %w", err)
-	}
 
 	// Add documents to Weaviate one at a time to show real progress
 	slog.Info("Starting embedding process", "documents", len(notesToEmbed))
