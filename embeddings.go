@@ -147,6 +147,8 @@ func initializeWeaviateStore() (*weaviate.Store, error) {
 		weaviate.WithScheme(wvScheme),
 		weaviate.WithHost(wvHost),
 		weaviate.WithIndexName(indexName),
+		// Specify which metadata fields to retrieve during similarity search
+		weaviate.WithQueryAttrs([]string{"text", "nameSpace", "title", "path", "slug"}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating weaviate store: %w", err)

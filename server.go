@@ -122,6 +122,8 @@ func (s *Server) getSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		return s.rs.SearchResults(s.NotesService, query, nil)
 	}
 
+	slog.Info("Weaviate returned documents", "query", query, "doc_count", len(docs))
+
 	// Convert documents to notes using metadata
 	var searchResults []model.Note
 	notesMap := s.NotesService.GetNotesMap()
@@ -135,7 +137,7 @@ func (s *Server) getSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 		}
 	}
 
-	slog.Info("Semantic search", "query", query, "results_found", len(searchResults))
+	slog.Info("Semantic search", "query", query, "weaviate_docs", len(docs), "results_found", len(searchResults))
 
 	return s.rs.SearchResults(s.NotesService, query, searchResults)
 }
