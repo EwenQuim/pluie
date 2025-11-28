@@ -5,6 +5,8 @@ services:
     platform: linux/amd64
     container_name: pluie-app
     restart: unless-stopped
+    depends_on:
+      - weaviate-embeddings
     ports:
       - "9999:9999" # Left is host port (you can customize), right is container port (do not change)
     volumes:

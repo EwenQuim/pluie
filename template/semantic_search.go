@@ -10,6 +10,44 @@ import (
 	. "github.com/maragudk/gomponents/html"
 )
 
+// searchForm creates a reusable search form component
+func searchForm(query string, autofocus bool, extraClasses string) g.Node {
+	classes := "max-w-2xl"
+	if extraClasses != "" {
+		classes += " " + extraClasses
+	}
+
+	return Form(
+		Method("GET"),
+		Action("/-/search"),
+		Class(classes),
+		g.Attr("hx-boost", "true"),
+		Div(
+			Class("relative"),
+			Input(
+				Type("text"),
+				Name("q"),
+				Placeholder("What are you looking for?"),
+				g.If(query != "", Value(query)),
+				Class("block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"),
+				g.If(autofocus, g.Attr("autofocus", "true")),
+			),
+			Div(
+				Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
+				Span(
+					Class("text-gray-400 text-lg"),
+					g.Text("🔍"),
+				),
+			),
+			Button(
+				Type("submit"),
+				Class("absolute inset-y-0 right-0 pr-3 flex items-center text-purple-600 hover:text-purple-800 font-medium"),
+				g.Text("Search"),
+			),
+		),
+	)
+}
+
 // SearchResults displays semantic search results
 func (rs Resource) SearchResults(notesService *engine.NotesService, query string, results []model.Note) (g.Node, error) {
 	// Get site title, icon, and description from environment variables
@@ -31,34 +69,7 @@ func (rs Resource) SearchResults(notesService *engine.NotesService, query string
 				Class("text-gray-600 mb-6"),
 				g.Text("Enter a search query to find related notes using semantic search."),
 			),
-			Form(
-				Method("GET"),
-				Action("/-/search"),
-				Class("max-w-2xl"),
-				g.Attr("hx-boost", "true"),
-				Div(
-					Class("relative"),
-					Input(
-						Type("text"),
-						Name("q"),
-						Placeholder("What are you looking for?"),
-						Class("block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"),
-						g.Attr("autofocus", "true"),
-					),
-					Div(
-						Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
-						Span(
-							Class("text-gray-400 text-lg"),
-							g.Text("🔍"),
-						),
-					),
-					Button(
-						Type("submit"),
-						Class("absolute inset-y-0 right-0 pr-3 flex items-center text-purple-600 hover:text-purple-800 font-medium"),
-						g.Text("Search"),
-					),
-				),
-			),
+			searchForm("", true, ""),
 		)
 	} else if len(results) == 0 {
 		title = fmt.Sprintf("Search: %s", query)
@@ -69,68 +80,14 @@ func (rs Resource) SearchResults(notesService *engine.NotesService, query string
 				g.Textf("No results found for \"%s\".", query),
 			),
 			// Search again form
-			Form(
-				Method("GET"),
-				Action("/-/search"),
-				Class("max-w-2xl"),
-				g.Attr("hx-boost", "true"),
-				Div(
-					Class("relative"),
-					Input(
-						Type("text"),
-						Name("q"),
-						Placeholder("What are you looking for?"),
-						Value(query),
-						Class("block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"),
-					),
-					Div(
-						Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
-						Span(
-							Class("text-gray-400 text-lg"),
-							g.Text("🔍"),
-						),
-					),
-					Button(
-						Type("submit"),
-						Class("absolute inset-y-0 right-0 pr-3 flex items-center text-purple-600 hover:text-purple-800 font-medium"),
-						g.Text("Search"),
-					),
-				),
-			),
+			searchForm(query, false, ""),
 		)
 	} else {
 		title = fmt.Sprintf("Search: %s (%d results)", query, len(results))
 		content = Div(
 			Class("prose max-w-none"),
 			// Search again form
-			Form(
-				Method("GET"),
-				Action("/-/search"),
-				Class("max-w-2xl mb-8"),
-				g.Attr("hx-boost", "true"),
-				Div(
-					Class("relative"),
-					Input(
-						Type("text"),
-						Name("q"),
-						Placeholder("What are you looking for?"),
-						Value(query),
-						Class("block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"),
-					),
-					Div(
-						Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
-						Span(
-							Class("text-gray-400 text-lg"),
-							g.Text("🔍"),
-						),
-					),
-					Button(
-						Type("submit"),
-						Class("absolute inset-y-0 right-0 pr-3 flex items-center text-purple-600 hover:text-purple-800 font-medium"),
-						g.Text("Search"),
-					),
-				),
-			),
+			searchForm(query, false, "mb-8"),
 			P(
 				Class("text-gray-600 mb-6"),
 				g.Textf("Found %d semantically related notes:", len(results)),
