@@ -10,6 +10,7 @@ import (
 	"github.com/EwenQuim/pluie/model"
 	"github.com/EwenQuim/pluie/static"
 	"github.com/EwenQuim/pluie/template"
+	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/vectorstores/weaviate"
 
 	"github.com/go-fuego/fuego"
@@ -21,6 +22,7 @@ type Server struct {
 	rs           template.Resource
 	cfg          *config.Config
 	wvStore      *weaviate.Store // Vector store for semantic search
+	chatClient   llms.Model      // Chat client for AI responses
 }
 
 // UpdateData safely updates the server's NotesMap, Tree, and TagIndex with new data
@@ -44,6 +46,11 @@ func (s *Server) Start() error {
 	// Search route - must be registered before the catch-all route
 	fuego.Get(server, "/-/search", s.getSearch,
 		option.Query("q", "Search query for semantic search"),
+	)
+
+	// Search chat route - must be registered before the catch-all route
+	fuego.Get(server, "/-/search-chat", s.getSearchChat,
+		option.Query("q", "Question to ask about your notes"),
 	)
 
 	// Tag route - must be registered before the catch-all route
@@ -140,4 +147,58 @@ func (s *Server) getSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	slog.Info("Semantic search", "query", query, "weaviate_docs", len(docs), "results_found", len(searchResults))
 
 	return s.rs.SearchResults(s.NotesService, query, searchResults)
+}
+
+func (s *Server) getSearchChat(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+	query := ctx.QueryParam("q")
+
+	if query == "" {
+		slog.Info("Empty search chat query")
+		return s.rs.SearchChatResults(s.NotesService, "", nil, "")
+	}
+
+	// If vector store is not available, return empty results
+	if s.wvStore == nil {
+		slog.Warn("Vector store not available, cannot perform semantic search")
+		return s.rs.SearchChatResults(s.NotesService, query, nil, "")
+	}
+
+	// Perform similarity search
+	c := context.Background()
+	docs, err := s.wvStore.SimilaritySearch(c, query, 10)
+	if err != nil {
+		slog.Error("Similarity search failed", "error", err, "query", query)
+		return s.rs.SearchChatResults(s.NotesService, query, nil, "")
+	}
+
+	slog.Info("Weaviate returned documents for chat", "query", query, "doc_count", len(docs))
+
+	// Convert documents to notes using metadata
+	var searchResults []model.Note
+	notesMap := s.NotesService.GetNotesMap()
+
+	for _, doc := range docs {
+		// Try to get the slug from metadata
+		if slug, ok := doc.Metadata["slug"].(string); ok {
+			if note, exists := notesMap[slug]; exists {
+				searchResults = append(searchResults, note)
+			}
+		}
+	}
+
+	slog.Info("Chat search", "query", query, "weaviate_docs", len(docs), "results_found", len(searchResults))
+
+	// Generate AI response if we have results and chat client is available
+	var aiResponse string
+	if len(searchResults) > 0 && s.chatClient != nil {
+		aiResponse, err = generateChatResponse(c, s.chatClient, query, searchResults)
+		if err != nil {
+			slog.Error("Failed to generate chat response", "error", err, "query", query)
+			// Continue without AI response rather than failing completely
+		}
+	} else if s.chatClient == nil {
+		slog.Warn("Chat client not available, cannot generate AI response")
+	}
+
+	return s.rs.SearchChatResults(s.NotesService, query, searchResults, aiResponse)
 }

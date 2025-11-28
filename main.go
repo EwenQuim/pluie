@@ -63,6 +63,15 @@ func main() {
 		}()
 	}
 
+	// Initialize chat client for AI responses
+	chatClient, err := initializeChatClient()
+	if err != nil {
+		slog.Warn("Failed to initialize chat client, AI responses will not be available", "error", err)
+		chatClient = nil
+	} else {
+		slog.Info("Chat client initialized successfully")
+	}
+
 	// Run in static mode if requested
 	if *mode == "static" {
 		err := generateStaticSite(notesService, cfg, *output)
@@ -80,6 +89,7 @@ func main() {
 		rs:           template.Resource{},
 		cfg:          cfg,
 		wvStore:      wvStore,
+		chatClient:   chatClient,
 	}
 
 	// Start file watcher if enabled

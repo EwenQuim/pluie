@@ -467,272 +467,109 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 		displayTree = notesService.FilterTreeBySearch(searchQuery)
 	}
 
-	// Get site title, icon, and description from environment variables
-	siteTitle := os.Getenv("SITE_TITLE")
-	if siteTitle == "" {
-		siteTitle = "Pluie"
-	}
-	siteIcon := os.Getenv("SITE_ICON")
-	siteDescription := os.Getenv("SITE_DESCRIPTION")
-
-	return rs.Layout(
-		note,
+	// Main content with note and TOC sidebar
+	mainContent := g.Group([]g.Node{
+		// Main content area with the note
 		Div(
-			Class("flex flex-col md:flex-row md:gap-2 h-screen w-screen justify-between"),
-			// Mobile top bar (hidden on desktop)
-			Div(
-				Class("md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between z-50"),
-				// Site title and icon
-				Div(
-					Class("flex items-center gap-3"),
-					g.If(siteIcon != "",
-						Img(
-							Src(siteIcon),
-							Alt("Site Icon"),
-							Class("w-6 h-6 object-contain rounded-md"),
-						),
-					),
-					H1(
-						Class("text-lg font-bold text-gray-900"),
-						g.Text(siteTitle),
-					),
-				),
-				// Burger menu button
-				Button(
-					Class("p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"),
-					ID("burger-menu"),
-					g.Attr("onclick", "toggleMobileSidebar()"),
-					g.Attr("aria-label", "Toggle navigation menu"),
-					Div(
-						Class("w-6 h-6 flex flex-col justify-center items-center space-y-1"),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-1")),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-2")),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-3")),
-					),
-				),
+			Class("flex-1 container overflow-y-auto p-4 md:px-8"),
+			H1(
+				Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
+				g.If(title != "", g.Text(title)),
 			),
-			// Mobile sidebar overlay
-			Div(
-				Class("fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden opacity-0 invisible transition-all duration-300"),
-				ID("mobile-sidebar-overlay"),
-				g.Attr("onclick", "closeMobileSidebar()"),
-			),
-			// Left sidebar with notes list
-			Div(
-				Class("w-3/4 md:w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full md:relative fixed top-0 left-0 z-50 md:z-auto -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out"),
-				ID("mobile-sidebar"),
-				// Site header with title and icon
+			g.If(len(matter) > 0 && os.Getenv("HIDE_YAML_FRONTMATTER") != "true",
 				Div(
-					Class("mb-6"),
+					Class("mb-6 opacity-80"),
+					// YAML front matter header with toggle button
 					Div(
-						Class("flex items-center gap-3 mb-2"),
-						// Site icon
-						g.If(siteIcon != "",
-							Img(
-								Src(siteIcon),
-								Alt("Site Icon"),
-								Class("w-8 h-8 object-contain rounded-md"),
-							),
-						),
-						// Site title
-						H1(
-							Class("text-xl font-bold text-gray-900"),
-							g.Text(siteTitle),
-						),
-					),
-					// Site description
-					g.If(siteDescription != "",
-						P(
-							Class("text-sm text-gray-500 italic"),
-							g.Text(siteDescription),
-						),
-					),
-				),
-				// Search form
-				Form(
-					Method("GET"),
-					Action("/"+slug),
-					Class("mb-1"),
-					g.Attr("hx-boost", "true"),
-					g.Attr("hx-push-url", "true"),
-					g.Attr("hx-target", "#notes-list"),
-					g.Attr("hx-select", "#notes-list"),
-					g.Attr("hx-swap", "outerHTML"),
-					Div(
-						Class("relative"),
-						Input(
-							Type("text"),
-							Name("search"),
-							Placeholder("Search page..."),
-							Value(searchQuery),
-							Class("block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"),
-							g.Attr("hx-get", "/"+slug),
-							g.Attr("hx-trigger", "input changed delay:200ms, search"),
-							g.Attr("hx-target", "#notes-list"),
-							g.Attr("hx-select", "#notes-list"),
-							g.Attr("hx-swap", "outerHTML"),
-							g.Attr("hx-push-url", "true"),
-						),
+						Class("flex items-center justify-between bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200 rounded-t-lg px-4 py-3 transition-all duration-200"),
 						Div(
-							Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
+							Class("flex items-center gap-2"),
 							Span(
-								Class("text-gray-400 text-sm"),
-								g.Text("🔍"),
+								Class("text-xs font-mono text-gray-500 uppercase tracking-wide"),
+								g.Textf("%d properties", len(matter)),
 							),
 						),
-						NoScript(
-							Button(
-								Type("submit"),
-								Class("absolute inset-y-0 right-0 pr-3 flex items-center"),
-								g.Text("Search"),
-							),
+						Button(
+							Class("flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"),
+							g.Attr("onclick", "toggleYamlFrontmatter()"),
+							g.Attr("id", "yaml-toggle-btn"),
+							Span(g.Text("Show")),
 						),
 					),
-				),
-				// Semantic search link
-				A(
-					Href("/-/search"),
-					Class("mb-6 inline-flex px-3 text-sm italic hover:underline rounded-md transition-colors"),
-					g.Attr("hx-boost", "true"),
-					g.Text("Use Semantic Search"),
-				),
-				// Fold/Unfold all buttons
-				Div(
-					Class("mb-4 flex gap-2"),
-					Button(
-						Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
-						g.Attr("onclick", "expandAllFolders()"),
-						g.Text("Expand All"),
-					),
-					Button(
-						Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
-						g.Attr("onclick", "collapseAllFolders()"),
-						g.Text("Collapse All"),
-					),
-				),
-				// Scrollable container for results and notes tree
-				Div(
-					Class("flex-1 overflow-y-auto"),
-					// Results info
-					g.If(searchQuery != "",
-						P(
-							Class("text-gray-600 mb-2 text-sm"),
-							g.Textf("Found %d notes matching \"%s\"", countNotesInTree(displayTree), searchQuery),
-						),
-					),
-					// Notes tree
+					// YAML front matter content (hidden by default)
 					Div(
-						ID("notes-list"),
-						Class(""),
-						g.If(displayTree != nil && len(displayTree.Children) > 0,
-							Ul(
-								Class(""),
-								g.Group(g.Map(displayTree.Children, func(child *engine.TreeNode) g.Node {
-									return rs.renderTreeNode(child, slug)
+						Class("bg-white border-l border-r border-b border-gray-200 rounded-b-lg transition-all duration-300 overflow-hidden"),
+						g.Attr("id", "yaml-content"),
+						g.Attr("style", "display: none;"),
+						Div(
+							Dl(
+								Class("grid grid-cols-1"),
+								g.Group(MapMapSorted(matter, func(key string, value any) g.Node {
+									return renderYamlProperty(key, value)
 								})),
 							),
 						),
-						// Show message if no results found
-						g.If(searchQuery != "" && (displayTree == nil || len(displayTree.Children) == 0),
-							P(
-								Class("text-gray-500 mt-4 text-sm"),
-								g.Text("No notes found matching your search."),
-							),
-						),
 					),
 				),
 			),
-			// Main content area with the note
 			Div(
-				Class("flex-1 container overflow-y-auto p-4 md:px-8"),
-				H1(
-					Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
-					g.If(title != "", g.Text(title)),
-				),
-				g.If(len(matter) > 0 && os.Getenv("HIDE_YAML_FRONTMATTER") != "true",
-					Div(
-						Class("mb-6 opacity-80"),
-						// YAML front matter header with toggle button
-						Div(
-							Class("flex items-center justify-between bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200 rounded-t-lg px-4 py-3 transition-all duration-200"),
-							Div(
-								Class("flex items-center gap-2"),
-								Span(
-									Class("text-xs font-mono text-gray-500 uppercase tracking-wide"),
-									g.Textf("%d properties", len(matter)),
-								),
-							),
-							Button(
-								Class("flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"),
-								g.Attr("onclick", "toggleYamlFrontmatter()"),
-								g.Attr("id", "yaml-toggle-btn"),
-								Span(g.Text("Show")),
-							),
-						),
-						// YAML front matter content (hidden by default)
-						Div(
-							Class("bg-white border-l border-r border-b border-gray-200 rounded-b-lg transition-all duration-300 overflow-hidden"),
-							g.Attr("id", "yaml-content"),
-							g.Attr("style", "display: none;"),
-							Div(
-								Dl(
-									Class("grid grid-cols-1"),
-									g.Group(MapMapSorted(matter, func(key string, value any) g.Node {
-										return renderYamlProperty(key, value)
-									})),
-								),
-							),
-						),
-					),
-				),
-				Div(
-					Class("prose max-w-none"),
-					g.Raw(string(markdown.Markdown(parsedContent))),
-				),
-				// Referenced By section
-				g.If(len(referencedBy) > 0,
-					Div(
-						Class("mt-8 pt-6 border-t border-gray-200"),
-						H3(
-							Class("text-lg font-semibold mb-3 text-gray-700"),
-							g.Text("Referenced by"),
-						),
-						Ul(
-							Class("space-y-2"),
-							g.Group(g.Map(referencedBy, func(ref model.NoteReference) g.Node {
-								return Li(
-									A(
-										Href("/"+ref.Slug),
-										Class("text-blue-600 hover:text-blue-800 hover:underline"),
-										g.Text(ref.Title),
-									),
-								)
-							})),
-						),
-					),
-				),
+				Class("prose max-w-none"),
+				g.Raw(string(markdown.Markdown(parsedContent))),
 			),
-			// Right sidebar with "On this page" table of contents
-			Div(
-				Class("w-64 bg-white border-l border-gray-200 p-4 hidden md:flex flex-col h-full"),
-				ID("toc-sidebar"),
+			// Referenced By section
+			g.If(len(referencedBy) > 0,
 				Div(
-					Class("mb-4"),
+					Class("mt-8 pt-6 border-t border-gray-200"),
 					H3(
-						Class("text-sm font-semibold text-gray-900 uppercase tracking-wide"),
-						g.Text("On this page"),
+						Class("text-lg font-semibold mb-3 text-gray-700"),
+						g.Text("Referenced by"),
 					),
-				),
-				Div(
-					Class("flex-1 overflow-y-auto"),
-					Nav(
-						ID("table-of-contents"),
-						Class("space-y-1"),
-						g.Group(renderTOC(tocItems)),
+					Ul(
+						Class("space-y-2"),
+						g.Group(g.Map(referencedBy, func(ref model.NoteReference) g.Node {
+							return Li(
+								A(
+									Href("/"+ref.Slug),
+									Class("text-blue-600 hover:text-blue-800 hover:underline"),
+									g.Text(ref.Title),
+								),
+							)
+						})),
 					),
 				),
 			),
 		),
+		// Right sidebar with "On this page" table of contents
+		Div(
+			Class("w-64 bg-white border-l border-gray-200 p-4 hidden md:flex flex-col h-full"),
+			ID("toc-sidebar"),
+			Div(
+				Class("mb-4"),
+				H3(
+					Class("text-sm font-semibold text-gray-900 uppercase tracking-wide"),
+					g.Text("On this page"),
+				),
+			),
+			Div(
+				Class("flex-1 overflow-y-auto"),
+				Nav(
+					ID("table-of-contents"),
+					Class("space-y-1"),
+					g.Group(renderTOC(tocItems)),
+				),
+			),
+		),
+	})
+
+	return rs.Layout(
+		note,
+		rs.renderWithNavbar(notesService, navbarConfig{
+			currentSlug:    slug,
+			searchQuery:    searchQuery,
+			showSearchForm: true, // Show inline search form on note pages
+			displayTree:    displayTree,
+			mainContent:    mainContent,
+		}),
 	), nil
 }
 
@@ -756,14 +593,6 @@ func countNotesInTree(node *engine.TreeNode) int {
 
 // TagList displays all notes that contain a specific tag
 func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes []model.Note) (g.Node, error) {
-	// Get site title, icon, and description from environment variables
-	siteTitle := os.Getenv("SITE_TITLE")
-	if siteTitle == "" {
-		siteTitle = "Pluie"
-	}
-	siteIcon := os.Getenv("SITE_ICON")
-	siteDescription := os.Getenv("SITE_DESCRIPTION")
-
 	var title string
 	var content g.Node
 
@@ -796,127 +625,22 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 		)
 	}
 
+	// Main content area
+	mainContent := Div(
+		Class("flex-1 container overflow-y-auto p-4 md:px-8"),
+		H1(
+			Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
+			g.Text(title),
+		),
+		content,
+	)
+
 	return rs.Layout(
 		nil, // No specific note for layout
-		Div(
-			Class("flex flex-col md:flex-row md:gap-2 h-screen w-screen justify-between"),
-			// Mobile top bar (hidden on desktop)
-			Div(
-				Class("md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between z-50"),
-				// Site title and icon
-				Div(
-					Class("flex items-center gap-3"),
-					g.If(siteIcon != "",
-						Img(
-							Src(siteIcon),
-							Alt("Site Icon"),
-							Class("w-6 h-6 object-contain rounded-md"),
-						),
-					),
-					H1(
-						Class("text-lg font-bold text-gray-900"),
-						g.Text(siteTitle),
-					),
-				),
-				// Burger menu button
-				Button(
-					Class("p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"),
-					ID("burger-menu"),
-					g.Attr("onclick", "toggleMobileSidebar()"),
-					g.Attr("aria-label", "Toggle navigation menu"),
-					Div(
-						Class("w-6 h-6 flex flex-col justify-center items-center space-y-1"),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-1")),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-2")),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-3")),
-					),
-				),
-			),
-			// Mobile sidebar overlay
-			Div(
-				Class("fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden opacity-0 invisible transition-all duration-300"),
-				ID("mobile-sidebar-overlay"),
-				g.Attr("onclick", "closeMobileSidebar()"),
-			),
-			// Left sidebar with notes list
-			Div(
-				Class("w-3/4 md:w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full md:relative fixed top-0 left-0 z-50 md:z-auto -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out"),
-				ID("mobile-sidebar"),
-				// Site header with title and icon
-				Div(
-					Class("mb-6"),
-					Div(
-						Class("flex items-center gap-3 mb-2"),
-						// Site icon
-						g.If(siteIcon != "",
-							Img(
-								Src(siteIcon),
-								Alt("Site Icon"),
-								Class("w-8 h-8 object-contain rounded-md"),
-							),
-						),
-						// Site title
-						H1(
-							Class("text-xl font-bold text-gray-900"),
-							g.Text(siteTitle),
-						),
-					),
-					// Site description
-					g.If(siteDescription != "",
-						P(
-							Class("text-sm text-gray-500 italic mb-3"),
-							g.Text(siteDescription),
-						),
-					),
-					// Semantic search link
-					A(
-						Href("/-/search"),
-						Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"),
-						g.Attr("hx-boost", "true"),
-						Span(
-							Class("text-base"),
-							g.Text("🔍"),
-						),
-						g.Text("Semantic Search"),
-					),
-				),
-				// Back to home link
-				Div(
-					Class("mb-6"),
-					A(
-						Href("/"),
-						Class("inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"),
-						g.Text("← Back to notes"),
-					),
-				),
-				// Scrollable container for notes tree
-				Div(
-					Class("flex-1 overflow-y-auto"),
-					// Notes tree
-					Div(
-						ID("notes-list"),
-						Class(""),
-						g.If(notesService.GetTree() != nil && len(notesService.GetTree().Children) > 0,
-							Ul(
-								Class(""),
-								g.Group(g.Map(notesService.GetTree().Children, func(child *engine.TreeNode) g.Node {
-									return rs.renderTreeNode(child, "")
-								})),
-							),
-						),
-					),
-				),
-			),
-			// Main content area with the tag results
-			Div(
-				Class("flex-1 container overflow-y-auto p-4 md:px-8"),
-				H1(
-					Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
-					g.Text(title),
-				),
-				content,
-			),
-		),
+		rs.renderWithNavbar(notesService, navbarConfig{
+			showSearchForm: false, // Don't show inline search form on tag pages
+			mainContent:    mainContent,
+		}),
 	), nil
 }
 

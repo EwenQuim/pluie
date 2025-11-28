@@ -2,7 +2,6 @@ package template
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
@@ -50,14 +49,6 @@ func searchForm(query string, autofocus bool, extraClasses string) g.Node {
 
 // SearchResults displays semantic search results
 func (rs Resource) SearchResults(notesService *engine.NotesService, query string, results []model.Note) (g.Node, error) {
-	// Get site title, icon, and description from environment variables
-	siteTitle := os.Getenv("SITE_TITLE")
-	if siteTitle == "" {
-		siteTitle = "Pluie"
-	}
-	siteIcon := os.Getenv("SITE_ICON")
-	siteDescription := os.Getenv("SITE_DESCRIPTION")
-
 	var title string
 	var content g.Node
 
@@ -66,8 +57,21 @@ func (rs Resource) SearchResults(notesService *engine.NotesService, query string
 		content = Div(
 			Class("prose max-w-none"),
 			P(
-				Class("text-gray-600 mb-6"),
+				Class("text-gray-600 mb-4"),
 				g.Text("Enter a search query to find related notes using semantic search."),
+			),
+			Div(
+				Class("bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6"),
+				P(
+					Class("text-sm text-blue-800 mb-2"),
+					g.Text("💡 Try our new "),
+					A(
+						Href("/-/search-chat"),
+						Class("font-semibold underline hover:text-blue-900"),
+						g.Text("Search Chat"),
+					),
+					g.Text(" feature to ask questions and get AI-powered summaries of your notes!"),
+				),
 			),
 			searchForm("", true, ""),
 		)
@@ -101,115 +105,21 @@ func (rs Resource) SearchResults(notesService *engine.NotesService, query string
 		)
 	}
 
+	// Main content area
+	mainContent := Div(
+		Class("flex-1 container overflow-y-auto p-4 md:px-8"),
+		H1(
+			Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
+			g.Text(title),
+		),
+		content,
+	)
+
 	return rs.Layout(
 		nil, // No specific note for layout
-		Div(
-			Class("flex flex-col md:flex-row md:gap-2 h-screen w-screen justify-between"),
-			// Mobile top bar (hidden on desktop)
-			Div(
-				Class("md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between z-50"),
-				// Site title and icon
-				Div(
-					Class("flex items-center gap-3"),
-					g.If(siteIcon != "",
-						Img(
-							Src(siteIcon),
-							Alt("Site Icon"),
-							Class("w-6 h-6 object-contain rounded-md"),
-						),
-					),
-					H1(
-						Class("text-lg font-bold text-gray-900"),
-						g.Text(siteTitle),
-					),
-				),
-				// Burger menu button
-				Button(
-					Class("p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"),
-					ID("burger-menu"),
-					g.Attr("onclick", "toggleMobileSidebar()"),
-					g.Attr("aria-label", "Toggle navigation menu"),
-					Div(
-						Class("w-6 h-6 flex flex-col justify-center items-center space-y-1"),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-1")),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-2")),
-						Div(Class("w-5 h-0.5 bg-gray-600 transition-all duration-300 ease-in-out"), ID("burger-line-3")),
-					),
-				),
-			),
-			// Mobile sidebar overlay
-			Div(
-				Class("fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden opacity-0 invisible transition-all duration-300"),
-				ID("mobile-sidebar-overlay"),
-				g.Attr("onclick", "closeMobileSidebar()"),
-			),
-			// Left sidebar with notes list
-			Div(
-				Class("w-3/4 md:w-1/4 max-w-md bg-white border-r border-gray-200 p-4 flex flex-col h-full md:relative fixed top-0 left-0 z-50 md:z-auto -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out"),
-				ID("mobile-sidebar"),
-				// Site header with title and icon
-				Div(
-					Class("mb-6"),
-					Div(
-						Class("flex items-center gap-3 mb-2"),
-						// Site icon
-						g.If(siteIcon != "",
-							Img(
-								Src(siteIcon),
-								Alt("Site Icon"),
-								Class("w-8 h-8 object-contain rounded-md"),
-							),
-						),
-						// Site title
-						H1(
-							Class("text-xl font-bold text-gray-900"),
-							g.Text(siteTitle),
-						),
-					),
-					// Site description
-					g.If(siteDescription != "",
-						P(
-							Class("text-sm text-gray-500 italic"),
-							g.Text(siteDescription),
-						),
-					),
-				),
-				// Back to home link
-				Div(
-					Class("mb-6"),
-					A(
-						Href("/"),
-						Class("inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"),
-						g.Text("← Back to notes"),
-					),
-				),
-				// Scrollable container for notes tree
-				Div(
-					Class("flex-1 overflow-y-auto"),
-					// Notes tree
-					Div(
-						ID("notes-list"),
-						Class(""),
-						g.If(notesService.GetTree() != nil && len(notesService.GetTree().Children) > 0,
-							Ul(
-								Class(""),
-								g.Group(g.Map(notesService.GetTree().Children, func(child *engine.TreeNode) g.Node {
-									return rs.renderTreeNode(child, "")
-								})),
-							),
-						),
-					),
-				),
-			),
-			// Main content area with the search results
-			Div(
-				Class("flex-1 container overflow-y-auto p-4 md:px-8"),
-				H1(
-					Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
-					g.Text(title),
-				),
-				content,
-			),
-		),
+		rs.renderWithNavbar(notesService, navbarConfig{
+			showSearchForm: false, // Don't show inline search form on search pages
+			mainContent:    mainContent,
+		}),
 	), nil
 }
