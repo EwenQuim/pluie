@@ -92,8 +92,8 @@ func (rs Resource) Layout(note *model.Note, node ...g.Node) g.Node {
 			),
 
 			Link(Rel("stylesheet"), Type("text/css"), Href("/static/tailwind.min.css")),
-			Script(Defer(), Src("https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js")),
-			Script(Defer(), Src("https://unpkg.com/htmx-ext-sse@2.2.2/sse.js")),
+			Script(Defer(), Src("/static/htmx.js")),
+			Script(Defer(), Src("/static/sse.js")),
 			Script(Defer(), Src("/static/app.js")),
 		),
 		Body(
