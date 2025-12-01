@@ -121,7 +121,7 @@ func TestLoad(t *testing.T) {
 			}()
 
 			// Load config
-			cfg := Load()
+			cfg := LoadConfig(false)
 
 			// Verify all fields
 			if cfg.Port != tt.expected.Port {

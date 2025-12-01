@@ -43,7 +43,7 @@ type Config struct {
 }
 
 // LoadConfig parses CLI flags and creates Config with CLI flags > Env vars > Defaults priority
-func LoadConfig() *Config {
+func LoadConfig(loadFlags bool) *Config {
 	// 1. Set defaults
 	cfg := &Config{
 		Path:                ".",
@@ -72,65 +72,32 @@ func LoadConfig() *Config {
 	cfg.applyEnvironment()
 
 	// 3. Apply CLI flags (override environment)
-	path := flag.String("path", "", "Path to the obsidian folder")
-	watch := flag.Bool("watch", false, "Enable file watching to auto-reload on changes")
-	mode := flag.String("mode", "", "Mode to run in: server or static")
-	output := flag.String("output", "", "Output folder for static site generation")
-	chatModel := flag.String("model", "", "Chat model to use for AI responses (overrides CHAT_MODEL env var)")
-	flag.Parse()
+	if loadFlags {
+		path := flag.String("path", "", "Path to the obsidian folder")
+		watch := flag.Bool("watch", false, "Enable file watching to auto-reload on changes")
+		mode := flag.String("mode", "", "Mode to run in: server or static")
+		output := flag.String("output", "", "Output folder for static site generation")
+		chatModel := flag.String("model", "", "Chat model to use for AI responses (overrides CHAT_MODEL env var)")
+		flag.Parse()
 
-	if *path != "" {
-		cfg.Path = *path
-	}
-	if flag.Lookup("watch").Value.String() != flag.Lookup("watch").DefValue {
-		cfg.Watch = *watch
-	}
-	if *mode != "" {
-		cfg.Mode = *mode
-	}
-	if *output != "" {
-		cfg.Output = *output
-	}
-	if *chatModel != "" {
-		cfg.ChatModel = *chatModel
+		if *path != "" {
+			cfg.Path = *path
+		}
+		if flag.Lookup("watch").Value.String() != flag.Lookup("watch").DefValue {
+			cfg.Watch = *watch
+		}
+		if *mode != "" {
+			cfg.Mode = *mode
+		}
+		if *output != "" {
+			cfg.Output = *output
+		}
+		if *chatModel != "" {
+			cfg.ChatModel = *chatModel
+		}
 	}
 
 	// 4. Validate with warnings
-	cfg.validate()
-
-	slog.Info("Configuration loaded",
-		slog.Any("config", cfg),
-	)
-
-	return cfg
-}
-
-// Load creates a new Config with values from environment variables only (no CLI flags)
-func Load() *Config {
-	cfg := &Config{
-		Path:                ".",
-		Watch:               true,
-		Mode:                "server",
-		Output:              "dist",
-		ChatProvider:        "ollama",
-		ChatModel:           "tinyllama",
-		Port:                "9999",
-		LogJSON:             false,
-		SiteTitle:           "Pluie",
-		SiteIcon:            "/static/pluie.webp",
-		SiteDescription:     "",
-		HideYamlFrontmatter: false,
-		PublicByDefault:     false,
-		HomeNoteSlug:        "Index",
-		OllamaURL:           "http://ollama-models:11434",
-		MistralAPIKey:       "",
-		OpenAIAPIKey:        "",
-		WeaviateHost:        "weaviate-embeddings:9035",
-		WeaviateScheme:      "http",
-		WeaviateIndex:       "Note",
-	}
-
-	cfg.applyEnvironment()
 	cfg.validate()
 
 	slog.Info("Configuration loaded",

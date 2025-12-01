@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Load configuration (parses flags internally)
-	cfg := config.LoadConfig()
+	cfg := config.LoadConfig(true)
 
 	// Setup charmbracelet/log as slog handler
 	logger := log.New(os.Stderr)
