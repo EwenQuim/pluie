@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	chatModel = "mistral:7b-instruct-q4_0" // Mistral model for chat/summarization
+	chatModel = "mistral:7b-instruct-q2_k" // Mistral model for chat/summarization
 )
 
 // initializeChatClient creates an Ollama client for chat interactions

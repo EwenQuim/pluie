@@ -5,7 +5,7 @@ on:
     branches:
       - master
     tags:
-      - 'v*'
+      - "v*"
 
 env:
   REGISTRY: ghcr.io
@@ -62,6 +62,7 @@ jobs:
         run: |
           curl -H "Title: Docker Image Deployed" \
                -H "Tags: rocket,package" \
+               -H "Authorization: Bearer tk_yys7h6y3q4wmtiovj6obvnyh6ivjc" \
                -H "Priority: default" \
                -d "Successfully pushed ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} to ghcr.io
           Tags: ${{ steps.meta.outputs.tags }}
