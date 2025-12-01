@@ -21,14 +21,11 @@ COPY package.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm install
 
-# Copy only files needed for CSS build first
-COPY src/input.css ./src/input.css
+# Copy the source code before Tailwind to make sure all classes from Go code are understood by tailwindcss
+COPY . .
 
 # Build Tailwind CSS with minification
 RUN npx @tailwindcss/cli -i ./src/input.css -o ./static/tailwind.min.css --minify
-
-# Copy the rest of the source code
-COPY . .
 
 # Build the application with build cache and strip symbols
 RUN --mount=type=cache,target=/root/.cache/go-build \
