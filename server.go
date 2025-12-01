@@ -190,7 +190,7 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 	// Parse seen slugs
 	seenSlugs := make(map[string]bool)
 	if seenParam != "" {
-		for _, slug := range strings.Split(seenParam, ",") {
+		for slug := range strings.SplitSeq(seenParam, ",") {
 			if slug != "" {
 				seenSlugs[slug] = true
 			}
@@ -286,22 +286,64 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 		slog.Warn("Chat client not available for unified search")
 	} else {
 		// Collect all unique notes for context (title + heading + semantic)
-		// Since we can't access title/heading matches here, use semantic results
-		// In production, you might want to pass these via the request
-		contextNotes := semanticResults
-		if len(contextNotes) > 5 {
-			contextNotes = contextNotes[:5]
+		// Re-perform title and heading searches to get all relevant notes
+		allNotes := s.NotesService.GetAllNotes()
+
+		// Get title matches
+		titleMatches := engine.SearchNotesByFilename(allNotes, query)
+
+		// Get heading matches
+		headingMatches := engine.SearchNotesByHeadings(allNotes, query, 0)
+
+		// Combine all results: title, heading, then semantic
+		contextNotes := make([]model.Note, 0, 10)
+		contextSlugs := make(map[string]bool)
+
+		// Add title matches first
+		for _, note := range titleMatches {
+			if !contextSlugs[note.Slug] {
+				contextNotes = append(contextNotes, note)
+				contextSlugs[note.Slug] = true
+			}
 		}
 
+		// Add heading matches
+		for _, match := range headingMatches {
+			if !contextSlugs[match.Note.Slug] {
+				contextNotes = append(contextNotes, match.Note)
+				contextSlugs[match.Note.Slug] = true
+			}
+		}
+
+		// Add semantic matches
+		for _, note := range semanticResults {
+			if !contextSlugs[note.Slug] {
+				contextNotes = append(contextNotes, note)
+				contextSlugs[note.Slug] = true
+			}
+		}
+
+		// Limit to 15 notes to maximize 2K token context
+		if len(contextNotes) > 10 {
+			contextNotes = contextNotes[:10]
+		}
+
+		slog.Info("Combined context notes for AI response",
+			"query", query,
+			"title_matches", len(titleMatches),
+			"heading_matches", len(headingMatches),
+			"semantic_matches", len(semanticResults),
+			"total_context_notes", len(contextNotes))
+
 		if len(contextNotes) > 0 {
-			// Build context from notes (limit to 300 chars per note)
+			// Build context from notes (limit to ~600 chars per note to maximize 2K token usage)
 			var contextBuilder strings.Builder
 			contextBuilder.WriteString("Relevant notes:\n\n")
 			for i, note := range contextNotes {
 				contextBuilder.WriteString(fmt.Sprintf("%d. %s:\n", i+1, note.Title))
 				content := note.Content
-				if len(content) > 300 {
-					content = content[:300] + "..."
+				if len(content) > 600 {
+					content = content[:600] + "..."
 				}
 				contextBuilder.WriteString(content)
 				contextBuilder.WriteString("\n\n")
@@ -316,7 +358,7 @@ Question: %s
 
 Answer concisely:`, query, contextBuilder.String())
 
-			slog.Info("Generating unified search AI response", "query", query, "num_docs", len(contextNotes), "prompt", prompt)
+			slog.Info("Generating unified search AI response", "query", query, "context_size", len(contextBuilder.String()))
 
 			// Create streaming callback
 			tokenCount := 0

@@ -188,11 +188,6 @@ func (rs Resource) renderSearchResultsContainer(query string, titleMatches []mod
 					ID("ai-content"),
 					Class("prose prose-sm max-w-none text-gray-700"),
 				),
-				// Streaming cursor
-				Span(
-					ID("ai-cursor"),
-					Class("hidden inline-block w-1.5 h-3 bg-gray-400 ml-1 animate-pulse"),
-				),
 				// Disclaimer
 				P(
 					ID("ai-disclaimer"),
@@ -259,7 +254,6 @@ func (rs Resource) renderSSEScript(query string, seenParam string) g.Node {
 	const combinedResults = document.getElementById('combined-results');
 	const aiSection = document.getElementById('ai-section');
 	const aiContent = document.getElementById('ai-content');
-	const cursor = document.getElementById('ai-cursor');
 	const disclaimer = document.getElementById('ai-disclaimer');
 
 	evtSource.addEventListener('semantic-results', function(e) {
@@ -274,19 +268,12 @@ func (rs Resource) renderSSEScript(query string, seenParam string) g.Node {
 		if (aiSection && aiSection.classList.contains('hidden')) {
 			aiSection.classList.remove('hidden');
 		}
-		if (cursor && cursor.classList.contains('hidden')) {
-			cursor.classList.remove('hidden');
-		}
 		if (aiContent) {
 			aiContent.insertAdjacentText('beforeend', e.data);
 		}
 	});
 
 	evtSource.addEventListener('done', function(e) {
-		if (cursor) {
-			cursor.classList.add('hidden');
-			cursor.classList.remove('animate-pulse');
-		}
 		if (disclaimer) disclaimer.classList.remove('hidden');
 		evtSource.close();
 		window.currentSearchSSE = null;
@@ -295,10 +282,6 @@ func (rs Resource) renderSSEScript(query string, seenParam string) g.Node {
 	evtSource.addEventListener('error', function(e) {
 		console.error('SSE error:', e);
 		if (loading) loading.classList.add('hidden');
-		if (cursor) {
-			cursor.classList.add('hidden');
-			cursor.classList.remove('animate-pulse');
-		}
 		evtSource.close();
 		window.currentSearchSSE = null;
 	});
