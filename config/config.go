@@ -30,8 +30,10 @@ type Config struct {
 	HomeNoteSlug    string
 
 	// AI/Chat settings
-	ChatModel string
-	OllamaURL string
+	ChatProvider  string // "ollama" or "mistral"
+	ChatModel     string
+	OllamaURL     string
+	MistralAPIKey string
 
 	// Embeddings/Weaviate settings
 	WeaviateHost   string
@@ -47,6 +49,7 @@ func LoadConfig() *Config {
 		Watch:               true,
 		Mode:                "server",
 		Output:              "dist",
+		ChatProvider:        "ollama",
 		ChatModel:           "tinyllama",
 		Port:                "9999",
 		LogJSON:             false,
@@ -57,6 +60,7 @@ func LoadConfig() *Config {
 		PublicByDefault:     false,
 		HomeNoteSlug:        "Index",
 		OllamaURL:           "http://ollama-models:11434",
+		MistralAPIKey:       "",
 		WeaviateHost:        "weaviate-embeddings:9035",
 		WeaviateScheme:      "http",
 		WeaviateIndex:       "Note",
@@ -106,6 +110,7 @@ func Load() *Config {
 		Watch:               true,
 		Mode:                "server",
 		Output:              "dist",
+		ChatProvider:        "ollama",
 		ChatModel:           "tinyllama",
 		Port:                "9999",
 		LogJSON:             false,
@@ -116,6 +121,7 @@ func Load() *Config {
 		PublicByDefault:     false,
 		HomeNoteSlug:        "Index",
 		OllamaURL:           "http://ollama-models:11434",
+		MistralAPIKey:       "",
 		WeaviateHost:        "weaviate-embeddings:9035",
 		WeaviateScheme:      "http",
 		WeaviateIndex:       "Note",
@@ -133,17 +139,27 @@ func Load() *Config {
 
 // applyEnvironment loads configuration from environment variables
 func (c *Config) applyEnvironment() {
-	// ChatModel can be set via CHAT_MODEL env var
+	// Chat settings
+	c.ChatProvider = getEnvOrDefault("CHAT_PROVIDER", c.ChatProvider)
 	c.ChatModel = getEnvOrDefault("CHAT_MODEL", c.ChatModel)
+	c.OllamaURL = getEnvOrDefault("OLLAMA_URL", c.OllamaURL)
+	c.MistralAPIKey = getEnvOrDefault("MISTRAL_API_KEY", c.MistralAPIKey)
+
+	// Server settings
 	c.Port = getEnvOrDefault("PORT", c.Port)
 	c.LogJSON = getEnvBool("LOG_JSON", c.LogJSON)
+
+	// Site customization
 	c.SiteTitle = getEnvOrDefault("SITE_TITLE", c.SiteTitle)
 	c.SiteIcon = getEnvOrDefault("SITE_ICON", c.SiteIcon)
 	c.SiteDescription = getEnvOrDefault("SITE_DESCRIPTION", c.SiteDescription)
 	c.HideYamlFrontmatter = getEnvBool("HIDE_YAML_FRONTMATTER", c.HideYamlFrontmatter)
-	c.PublicByDefault = getEnvBool("PUBLIC_BY_DEFAULT", c.PublicByDefault)
 	c.HomeNoteSlug = getEnvOrDefault("HOME_NOTE_SLUG", c.HomeNoteSlug)
-	c.OllamaURL = getEnvOrDefault("OLLAMA_URL", c.OllamaURL)
+
+	// Privacy settings
+	c.PublicByDefault = getEnvBool("PUBLIC_BY_DEFAULT", c.PublicByDefault)
+
+	// Embeddings/Weaviate settings
 	c.WeaviateHost = getEnvOrDefault("WEAVIATE_HOST", c.WeaviateHost)
 	c.WeaviateScheme = getEnvOrDefault("WEAVIATE_SCHEME", c.WeaviateScheme)
 	c.WeaviateIndex = getEnvOrDefault("WEAVIATE_INDEX", c.WeaviateIndex)
@@ -161,6 +177,12 @@ func (c *Config) validate() {
 	if _, err := os.Stat(c.Path); os.IsNotExist(err) {
 		slog.Warn("PATH does not exist, using current directory", "path", c.Path)
 		c.Path = "."
+	}
+
+	// Chat provider validation
+	if c.ChatProvider != "ollama" && c.ChatProvider != "mistral" {
+		slog.Warn("Invalid CHAT_PROVIDER, defaulting to 'ollama'", "provided", c.ChatProvider)
+		c.ChatProvider = "ollama"
 	}
 
 	// Weaviate scheme validation
