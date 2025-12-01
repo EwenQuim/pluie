@@ -14,19 +14,26 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-# Copy source code
-COPY . .
+# Copy package.json for npm dependency caching
+COPY package.json ./
 
-# Install Tailwind CSS and CLI locally (stable v4 versions)
-RUN npm install --no-save tailwindcss@^4.0.0 @tailwindcss/cli@^4.0.0 @tailwindcss/typography
+# Install Tailwind CSS with npm cache
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
+
+# Copy only files needed for CSS build first
+COPY src/input.css ./src/input.css
 
 # Build Tailwind CSS with minification
 RUN npx @tailwindcss/cli -i ./src/input.css -o ./static/tailwind.min.css --minify
 
-# Build the application with build cache
+# Copy the rest of the source code
+COPY . .
+
+# Build the application with build cache and strip symbols
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 GOOS=linux go build -o main .
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main .
 
 # Final stage
 FROM alpine:latest

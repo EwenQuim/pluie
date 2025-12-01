@@ -1,0 +1,10 @@
+{
+  "name": "pluie",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/cli": "^4.0.0",
+    "@tailwindcss/typography": "^0.5.15"
+  }
+}
