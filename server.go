@@ -14,7 +14,6 @@ import (
 	"github.com/EwenQuim/pluie/static"
 	"github.com/EwenQuim/pluie/template"
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/vectorstores/weaviate"
 
 	"github.com/go-fuego/fuego"
 	"github.com/go-fuego/fuego/option"
@@ -24,9 +23,8 @@ type Server struct {
 	NotesService      *engine.NotesService
 	rs                template.Resource
 	cfg               *config.Config
-	wvStore           *weaviate.Store    // Vector store for semantic search
 	chatClient        llms.Model         // Chat client for AI responses
-	embeddingProgress *EmbeddingProgress // Tracks embedding progress for SSE updates
+	embeddingsManager *EmbeddingsManager // Manages all embeddings functionality
 }
 
 // UpdateData safely updates the server's NotesMap, Tree, and TagIndex with new data
@@ -114,6 +112,11 @@ func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 
 // getUnifiedSearch handles the unified search page with immediate and lazy-loaded results
 func (s *Server) getUnifiedSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+	// Trigger lazy initialization of embeddings on first search access
+	if s.embeddingsManager != nil {
+		s.embeddingsManager.InitializeLazily()
+	}
+
 	query := ctx.QueryParam("q")
 
 	if query == "" {
@@ -158,6 +161,11 @@ func (s *Server) getUnifiedSearch(ctx fuego.ContextNoBody) (fuego.Renderer, erro
 
 // getUnifiedSearchStream handles SSE streaming for semantic search and AI response
 func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) {
+	// Trigger lazy initialization of embeddings on first search access
+	if s.embeddingsManager != nil {
+		s.embeddingsManager.InitializeLazily()
+	}
+
 	query := r.URL.Query().Get("q")
 	seenParam := r.URL.Query().Get("seen")
 
@@ -220,8 +228,11 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 
 	// If vector store is available, perform semantic search
 	var semanticResults []model.Note
-	if s.wvStore != nil {
-		docs, err := s.wvStore.SimilaritySearch(r.Context(), query, 10) // Get 10, will filter to 5
+	vectorStore := s.embeddingsManager.GetStore()
+	if vectorStore == nil {
+		slog.Warn("Vector store not available for unified search")
+	} else {
+		docs, err := vectorStore.SimilaritySearch(r.Context(), query, 10) // Get 10, will filter to 5
 		if err != nil {
 			slog.Error("Similarity search failed", "error", err, "query", query)
 		} else {
@@ -246,8 +257,6 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 				}
 			}
 		}
-	} else {
-		slog.Warn("Vector store not available for unified search")
 	}
 
 	// Send semantic results if we have any
@@ -393,8 +402,14 @@ func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Subscribe to embedding progress updates
-	progressChan := s.embeddingProgress.Subscribe()
-	defer s.embeddingProgress.Unsubscribe(progressChan)
+	embeddingProgress := s.embeddingsManager.GetProgress()
+	if embeddingProgress == nil {
+		http.Error(w, "Embedding progress not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	progressChan := embeddingProgress.Subscribe()
+	defer embeddingProgress.Unsubscribe(progressChan)
 
 	// Create a ticker for periodic updates (every 10 seconds)
 	ticker := time.NewTicker(10 * time.Second)
@@ -420,7 +435,7 @@ func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send initial status immediately
-	sendUpdate(s.embeddingProgress.GetStatus())
+	sendUpdate(embeddingProgress.GetStatus())
 
 	for {
 		select {
@@ -428,7 +443,7 @@ func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-ticker.C:
 			// Send periodic update
-			sendUpdate(s.embeddingProgress.GetStatus())
+			sendUpdate(embeddingProgress.GetStatus())
 		case status := <-progressChan:
 			// Send update when progress changes
 			sendUpdate(status)

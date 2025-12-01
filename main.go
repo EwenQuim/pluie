@@ -2,7 +2,6 @@ package main
 
 import (
 	"cmp"
-	"context"
 	"flag"
 	"log/slog"
 	"os"
@@ -52,24 +51,15 @@ func main() {
 	// Initialize embedding progress tracker
 	embeddingProgress := NewEmbeddingProgress()
 
-	// Initialize Weaviate store for search
+	// Initialize Weaviate store for search (embeddings will be lazy-loaded on first search)
 	wvStore, err := initializeWeaviateStore()
 	if err != nil {
 		slog.Warn("Failed to initialize Weaviate store, search and embeddings will not be available", "error", err)
 		wvStore = nil
-	} else {
-		slog.Info("Weaviate store initialized successfully")
-
-		// Embed notes into Weaviate in background (only if store was initialized)
-		go func() {
-			ctx := context.Background()
-			allNotes := notesService.GetAllNotes()
-			if err := embedNotesWithProgress(ctx, wvStore, allNotes, embeddingProgress); err != nil {
-				slog.Error("Error embedding notes", "error", err)
-				// Continue anyway - the server can still work without embeddings
-			}
-		}()
 	}
+
+	// Create embeddings manager
+	embeddingsManager := NewEmbeddingsManager(wvStore, embeddingProgress, notesService)
 
 	// Initialize chat client for AI responses
 	chatClient, err := initializeChatClient(*chatModel)
@@ -94,9 +84,8 @@ func main() {
 		NotesService:      notesService,
 		rs:                template.Resource{},
 		cfg:               cfg,
-		wvStore:           wvStore,
 		chatClient:        chatClient,
-		embeddingProgress: embeddingProgress,
+		embeddingsManager: embeddingsManager,
 	}
 
 	// Start file watcher if enabled

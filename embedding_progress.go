@@ -11,7 +11,6 @@ import (
 
 	"github.com/EwenQuim/pluie/model"
 	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores/weaviate"
 )
 
 // EmbeddingProgress tracks the current state of embedding operations
@@ -103,8 +102,8 @@ func (ep *EmbeddingProgress) Unsubscribe(ch chan EmbeddingStatus) {
 	}
 }
 
-// embedNotesWithProgress embeds notes into Weaviate with progress tracking
-func embedNotesWithProgress(ctx context.Context, wvStore *weaviate.Store, notes []model.Note, progress *EmbeddingProgress) error {
+// embedNotesWithProgress embeds notes into a vector store with progress tracking
+func embedNotesWithProgress(ctx context.Context, store VectorStore, notes []model.Note, progress *EmbeddingProgress) error {
 	start := time.Now()
 
 	// Load tracking file
@@ -160,10 +159,10 @@ func embedNotesWithProgress(ctx context.Context, wvStore *weaviate.Store, notes 
 			},
 		}
 
-		_, err = wvStore.AddDocuments(ctx, []schema.Document{doc})
+		_, err = store.AddDocuments(ctx, []schema.Document{doc})
 		if err != nil {
 			progress.UpdateProgress(alreadyEmbedded+i, totalNotes, "", false)
-			return fmt.Errorf("adding document to weaviate (title=%s, path=%s): %w", note.Title, note.Path, err)
+			return fmt.Errorf("adding document to vector store (title=%s, path=%s): %w", note.Title, note.Path, err)
 		}
 
 		slog.Info("Document embedded successfully",

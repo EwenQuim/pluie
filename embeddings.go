@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
+	"sync"
 	"time"
 
+	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores/weaviate"
+	"github.com/tmc/langchaingo/vectorstores"
 )
 
 const (
@@ -23,7 +22,7 @@ const (
 	embeddingsModel        = "nomic-embed-text" // Fast, efficient embedding model
 )
 
-// EmbeddedFile tracks a file that has been embedded in Weaviate
+// EmbeddedFile tracks a file that has been embedded in the Vector Store
 type EmbeddedFile struct {
 	Path         string    `json:"path"`
 	ContentHash  string    `json:"content_hash"`
@@ -103,140 +102,72 @@ func (t *EmbeddingsTracker) markAsEmbedded(note model.Note, lastModified time.Ti
 	}
 }
 
-// initializeWeaviateStore creates and initializes the Weaviate store
-func initializeWeaviateStore() (*weaviate.Store, error) {
-	// Get Weaviate configuration from environment or use defaults
-	wvHost := os.Getenv("WEAVIATE_HOST")
-	if wvHost == "" {
-		wvHost = "weaviate-embeddings:9035" // Default from docker-compose
-	}
-
-	wvScheme := os.Getenv("WEAVIATE_SCHEME")
-	if wvScheme == "" {
-		wvScheme = "http"
-	}
-
-	indexName := os.Getenv("WEAVIATE_INDEX")
-	if indexName == "" {
-		indexName = "Note"
-	}
-
-	slog.Info("Initializing Weaviate store",
-		"host", wvHost,
-		"scheme", wvScheme,
-		"index", indexName,
-		"embeddings_model", embeddingsModel)
-
-	// Create Ollama client for embeddings
-	embeddingsClient, err := ollama.New(
-		ollama.WithServerURL("http://ollama-models:11434"),
-		ollama.WithModel(embeddingsModel),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating ollama client: %w", err)
-	}
-
-	emb, err := embeddings.NewEmbedder(embeddingsClient)
-	if err != nil {
-		return nil, fmt.Errorf("creating embedder: %w", err)
-	}
-
-	// Create Weaviate store
-	wvStore, err := weaviate.New(
-		weaviate.WithEmbedder(emb),
-		weaviate.WithScheme(wvScheme),
-		weaviate.WithHost(wvHost),
-		weaviate.WithIndexName(indexName),
-		// Specify which metadata fields to retrieve during similarity search
-		weaviate.WithQueryAttrs([]string{"text", "nameSpace", "title", "path", "slug"}),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating weaviate store: %w", err)
-	}
-
-	return &wvStore, nil
+// VectorStore defines the interface for vector storage operations
+type VectorStore interface {
+	// AddDocuments adds documents to the vector store
+	AddDocuments(ctx context.Context, docs []schema.Document, options ...vectorstores.Option) ([]string, error)
+	// SimilaritySearch performs a similarity search on the vector store
+	SimilaritySearch(ctx context.Context, query string, numDocuments int, options ...vectorstores.Option) ([]schema.Document, error)
 }
 
-// embedNotes embeds notes into Weaviate, only processing new or changed notes
-func embedNotes(ctx context.Context, wvStore *weaviate.Store, notes []model.Note) error {
-	start := time.Now()
+// EmbeddingsManager handles all embeddings-related functionality
+type EmbeddingsManager struct {
+	store        VectorStore        // Vector store for semantic search
+	progress     *EmbeddingProgress // Tracks embedding progress for SSE updates
+	initOnce     sync.Once          // Ensures embeddings are initialized only once
+	initialized  bool               // Tracks if embeddings have been initialized
+	initMutex    sync.RWMutex       // Protects initialized flag
+	notesService *engine.NotesService
+}
 
-	// Load tracking file
-	tracker, err := loadEmbeddingsTracker()
-	if err != nil {
-		return fmt.Errorf("loading embeddings tracker: %w", err)
+// NewEmbeddingsManager creates a new EmbeddingsManager
+func NewEmbeddingsManager(store VectorStore, progress *EmbeddingProgress, notesService *engine.NotesService) *EmbeddingsManager {
+	return &EmbeddingsManager{
+		store:        store,
+		progress:     progress,
+		notesService: notesService,
+	}
+}
+
+// InitializeLazily initializes embeddings on first call (thread-safe)
+func (em *EmbeddingsManager) InitializeLazily() {
+	// Only initialize if store is available
+	if em.store == nil {
+		return
 	}
 
-	// Filter notes that need embedding
-	var notesToEmbed []model.Note
-	for _, note := range notes {
-		if tracker.needsEmbedding(note) {
-			notesToEmbed = append(notesToEmbed, note)
-		}
-	}
+	em.initOnce.Do(func() {
+		slog.Info("Lazy-loading embeddings: triggered by search page access")
 
-	if len(notesToEmbed) == 0 {
-		slog.Info("No new notes to embed, all notes are up to date",
-			"total_notes", len(notes),
-			"tracked_notes", len(tracker.Files))
+		// Mark as initialized immediately to prevent concurrent calls
+		em.initMutex.Lock()
+		em.initialized = true
+		em.initMutex.Unlock()
+
+		// Embed notes into vector store in background
+		go func() {
+			ctx := context.Background()
+			allNotes := em.notesService.GetAllNotes()
+			if err := embedNotesWithProgress(ctx, em.store, allNotes, em.progress); err != nil {
+				slog.Error("Error embedding notes", "error", err)
+				// Continue anyway - the server can still work without embeddings
+			}
+		}()
+	})
+}
+
+// GetStore returns the vector store
+func (em *EmbeddingsManager) GetStore() VectorStore {
+	if em == nil {
 		return nil
 	}
+	return em.store
+}
 
-	slog.Info("Notes embedding status",
-		"total_notes", len(notes),
-		"already_embedded", len(notes)-len(notesToEmbed),
-		"to_embed", len(notesToEmbed))
-
-	// Add documents to Weaviate one at a time to show real progress
-	slog.Info("Starting embedding process", "documents", len(notesToEmbed))
-
-	for i, note := range notesToEmbed {
-		docStart := time.Now()
-
-		// Combine title and content for better semantic search
-		content := fmt.Sprintf("# %s\n\n%s", note.Title, note.Content)
-		doc := schema.Document{
-			PageContent: content,
-			Metadata: map[string]any{
-				"title": note.Title,
-				"path":  note.Path,
-				"slug":  note.Slug,
-			},
-		}
-
-		_, err = wvStore.AddDocuments(ctx, []schema.Document{doc})
-		if err != nil {
-			return fmt.Errorf("adding document to weaviate (title=%s, path=%s): %w", note.Title, note.Path, err)
-		}
-
-		slog.Info("Document embedded successfully",
-			"document", i+1,
-			"total", len(notesToEmbed),
-			"title", note.Title,
-			"duration", time.Since(docStart))
+// GetProgress returns the embedding progress tracker
+func (em *EmbeddingsManager) GetProgress() *EmbeddingProgress {
+	if em == nil {
+		return nil
 	}
-
-	// Update tracking file
-	for _, note := range notesToEmbed {
-		// Get file modification time
-		info, err := os.Stat(filepath.Join(".", note.Path))
-		var modTime time.Time
-		if err == nil {
-			modTime = info.ModTime()
-		} else {
-			modTime = time.Now()
-		}
-		tracker.markAsEmbedded(note, modTime)
-	}
-
-	// Save tracker
-	if err := tracker.save(); err != nil {
-		return fmt.Errorf("saving tracker: %w", err)
-	}
-
-	slog.Info("Embedding completed",
-		"embedded_notes", len(notesToEmbed),
-		"duration", time.Since(start))
-
-	return nil
+	return em.progress
 }
