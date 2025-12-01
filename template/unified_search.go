@@ -193,7 +193,7 @@ func (rs Resource) renderSearchResultsContainer(query string, titleMatches []mod
 				P(
 					ID("ai-disclaimer"),
 					Class("hidden text-xs text-gray-500 italic mt-3 mb-0"),
-					g.Text("AI generated, might not be accurate"),
+					g.Text("AI generated, might not be accurate. Model: "+rs.cfg.ChatModel),
 				),
 			),
 		),
