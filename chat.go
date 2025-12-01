@@ -12,12 +12,8 @@ import (
 	"github.com/tmc/langchaingo/llms/ollama"
 )
 
-const (
-	chatModel = "mistral:7b-instruct-q2_k" // Mistral model for chat/summarization
-)
-
 // initializeChatClient creates an Ollama client for chat interactions
-func initializeChatClient() (llms.Model, error) {
+func initializeChatClient(chatModel string) (llms.Model, error) {
 	// Get Ollama configuration from environment or use defaults
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
@@ -36,6 +32,8 @@ func initializeChatClient() (llms.Model, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating ollama chat client: %w", err)
 	}
+
+	slog.Info("Chat client initialized successfully")
 
 	return chatClient, nil
 }
@@ -74,7 +72,6 @@ Based on the documents provided above, please answer the user's question. Be con
 
 	// Generate response
 	response, err := llms.GenerateFromSinglePrompt(ctx, chatClient, prompt,
-		llms.WithModel(chatModel),
 		llms.WithMaxTokens(1024),
 		llms.WithTemperature(0.7),
 	)

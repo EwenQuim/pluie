@@ -335,7 +335,6 @@ Answer concisely:`, query, contextBuilder.String())
 				r.Context(),
 				s.chatClient,
 				prompt,
-				llms.WithModel(chatModel),
 				llms.WithMaxTokens(512), // Shorter for unified search
 				llms.WithTemperature(0.7),
 				llms.WithStreamingFunc(streamCallback),
@@ -617,7 +616,6 @@ Answer concisely:`, query, contextBuilder.String())
 		c,
 		s.chatClient,
 		prompt,
-		llms.WithModel(chatModel),
 		llms.WithMaxTokens(1024),
 		llms.WithTemperature(0.7),
 		llms.WithStreamingFunc(streamCallback),

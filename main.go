@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"flag"
 	"log/slog"
@@ -17,6 +18,10 @@ func main() {
 	watch := flag.Bool("watch", true, "Enable file watching to auto-reload on changes")
 	mode := flag.String("mode", "server", "Mode to run in: server or static")
 	output := flag.String("output", "dist", "Output folder for static site generation")
+
+	// Get default chat model from environment variable, fallback to tinyllama
+	defaultChatModel := cmp.Or(os.Getenv("CHAT_MODEL"), "tinyllama")
+	chatModel := flag.String("model", defaultChatModel, "Chat model to use for AI responses")
 
 	flag.Parse()
 
@@ -67,12 +72,10 @@ func main() {
 	}
 
 	// Initialize chat client for AI responses
-	chatClient, err := initializeChatClient()
+	chatClient, err := initializeChatClient(*chatModel)
 	if err != nil {
 		slog.Warn("Failed to initialize chat client, AI responses will not be available", "error", err)
 		chatClient = nil
-	} else {
-		slog.Info("Chat client initialized successfully")
 	}
 
 	// Run in static mode if requested
