@@ -66,7 +66,7 @@ User's Question: %s
 
 %s
 
-Based on the documents provided above, please answer the user's question. Be concise, accurate, and cite which documents you're referencing when relevant. If the documents don't contain enough information to fully answer the question, acknowledge that and answer what you can.`, query, contextBuilder.String())
+Based on the documents provided above, please answer the user's question. If it is not a question, give a definition. Be concise, accurate, and cite which documents you're referencing when relevant. If the documents don't contain enough information to fully answer the question, acknowledge that and answer what you can.`, query, contextBuilder.String())
 
 	slog.Info("Generating chat response", "query", query, "num_docs", len(results))
 

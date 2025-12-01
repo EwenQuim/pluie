@@ -20,7 +20,7 @@ COPY . .
 # Install Tailwind CSS and CLI locally (stable v4 versions)
 RUN npm install --no-save tailwindcss@^4.0.0 @tailwindcss/cli@^4.0.0 @tailwindcss/typography
 
-# Build Tailwind CSS
+# Build Tailwind CSS with minification
 RUN npx @tailwindcss/cli -i ./src/input.css -o ./static/tailwind.min.css --minify
 
 # Build the application with build cache

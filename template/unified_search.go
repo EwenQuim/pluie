@@ -191,7 +191,7 @@ func (rs Resource) renderSearchResultsContainer(query string, titleMatches []mod
 				// Streaming cursor
 				Span(
 					ID("ai-cursor"),
-					Class("inline-block w-1.5 h-3 bg-gray-400 ml-1 animate-pulse"),
+					Class("hidden inline-block w-1.5 h-3 bg-gray-400 ml-1 animate-pulse"),
 				),
 				// Disclaimer
 				P(
@@ -273,6 +273,9 @@ func (rs Resource) renderSSEScript(query string, seenParam string) g.Node {
 	evtSource.addEventListener('token', function(e) {
 		if (aiSection && aiSection.classList.contains('hidden')) {
 			aiSection.classList.remove('hidden');
+		}
+		if (cursor && cursor.classList.contains('hidden')) {
+			cursor.classList.remove('hidden');
 		}
 		if (aiContent) {
 			aiContent.insertAdjacentText('beforeend', e.data);
