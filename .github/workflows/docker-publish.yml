@@ -56,3 +56,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Send ntfy.sh notification
+        if: success()
+        run: |
+          curl -H "Title: Docker Image Deployed" \
+               -H "Tags: rocket,package" \
+               -H "Priority: default" \
+               -d "Successfully pushed ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} to ghcr.io
+          Tags: ${{ steps.meta.outputs.tags }}
+          Commit: ${{ github.event.head_commit.message }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+               https://ntfy.quimerch.com/deploys
