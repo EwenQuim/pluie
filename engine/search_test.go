@@ -469,7 +469,7 @@ Set up your development environment.`,
 			notes:         testNotes,
 			searchQuery:   "Getting Started",
 			limit:         10,
-			expectedCount: 2, // "Getting Started", "Getting Started with Go"
+			expectedCount: 2,                 // "Getting Started", "Getting Started with Go"
 			expectedFirst: "Getting Started", // Exact match should rank higher
 			expectedLevel: 2,
 		},
@@ -795,45 +795,45 @@ func TestExtractContext(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		lines     []string
-		lineNum   int
-		maxChars  int
+		name          string
+		lines         []string
+		lineNum       int
+		maxChars      int
 		shouldContain string
 	}{
 		{
-			name:     "extract context from H1",
-			lines:    lines,
-			lineNum:  0,
-			maxChars: 75,
+			name:          "extract context from H1",
+			lines:         lines,
+			lineNum:       0,
+			maxChars:      75,
 			shouldContain: "first line",
 		},
 		{
-			name:     "extract limited context",
-			lines:    lines,
-			lineNum:  0,
-			maxChars: 30,
+			name:          "extract limited context",
+			lines:         lines,
+			lineNum:       0,
+			maxChars:      30,
 			shouldContain: "first line",
 		},
 		{
-			name:     "context stops at next heading",
-			lines:    lines,
-			lineNum:  0,
-			maxChars: 200,
+			name:          "context stops at next heading",
+			lines:         lines,
+			lineNum:       0,
+			maxChars:      200,
 			shouldContain: "blank line",
 		},
 		{
-			name:     "invalid line number returns empty",
-			lines:    lines,
-			lineNum:  -1,
-			maxChars: 75,
+			name:          "invalid line number returns empty",
+			lines:         lines,
+			lineNum:       -1,
+			maxChars:      75,
 			shouldContain: "",
 		},
 		{
-			name:     "out of bounds returns empty",
-			lines:    lines,
-			lineNum:  100,
-			maxChars: 75,
+			name:          "out of bounds returns empty",
+			lines:         lines,
+			lineNum:       100,
+			maxChars:      75,
 			shouldContain: "",
 		},
 	}

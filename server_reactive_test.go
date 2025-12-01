@@ -161,7 +161,7 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 	}
 
 	// Verify tree was also updated
-	allNotes := engine.GetAllNotesFromTree(tree2)
+	allNotes := server.NotesService.GetAllNotes()
 	if len(allNotes) != 3 {
 		t.Errorf("Expected 3 notes in updated tree, got %d", len(allNotes))
 	}
@@ -248,7 +248,7 @@ func TestServerReactiveConcurrentUpdates(t *testing.T) {
 		t.Error("Tree should not be nil after updates")
 	}
 
-	allNotes := engine.GetAllNotesFromTree(tree)
+	allNotes := server.NotesService.GetAllNotes()
 	if len(allNotes) != 1 {
 		t.Errorf("Expected 1 note in tree after updates, got %d", len(allNotes))
 	}

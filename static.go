@@ -210,7 +210,11 @@ func writeNodeToFile(node interface{ Render(io.Writer) error }, path string) err
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Error("failed to close file", "path", path, "error", err)
+		}
+	}()
 
 	if err := node.Render(file); err != nil {
 		return fmt.Errorf("failed to render node: %w", err)

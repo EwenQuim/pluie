@@ -27,15 +27,15 @@ func TestLoadNotes(t *testing.T) {
 	}
 
 	if notesMap == nil {
-		t.Error("notesMap should not be nil")
+		t.Fatal("notesMap should not be nil")
 	}
 
 	if tree == nil {
-		t.Error("tree should not be nil")
+		t.Fatal("tree should not be nil")
 	}
 
 	if tagIndex == nil {
-		t.Error("tagIndex should not be nil")
+		t.Fatal("tagIndex should not be nil")
 	}
 
 	// Verify some notes were loaded (should have at least the public ones)
@@ -156,14 +156,13 @@ This is a new note.
 
 	// Verify the new note was added
 	finalNotesMap := server.NotesService.GetNotesMap()
-	finalTree := server.NotesService.GetTree()
 
 	if len(finalNotesMap) != 2 {
 		t.Errorf("Expected 2 notes after adding new note, got %d", len(finalNotesMap))
 	}
 
 	// Verify tree was updated
-	allNotes := engine.GetAllNotesFromTree(finalTree)
+	allNotes := server.NotesService.GetAllNotes()
 	if len(allNotes) != 2 {
 		t.Errorf("Expected 2 notes in tree after adding new note, got %d", len(allNotes))
 	}

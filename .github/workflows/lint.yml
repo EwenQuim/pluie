@@ -1,0 +1,34 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          # Only report issues on new code for pull requests
+          only-new-issues: ${{ github.event_name == 'pull_request' }}
+        # Allow failure on master branch (warning only), but block on PRs
+        continue-on-error: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Comment result on master
+        if: failure() && github.ref == 'refs/heads/master'
+        run: |
+          echo "::warning::golangci-lint found issues on master branch, but not blocking the build"

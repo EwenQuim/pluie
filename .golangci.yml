@@ -1,0 +1,41 @@
+# golangci-lint configuration
+# Minimal configuration for code quality
+
+version: "2"
+
+run:
+  timeout: 5m
+  go: "1.25"
+  tests: false
+
+# Use default linters (errcheck, govet, ineffassign, staticcheck, unused)
+# These are enabled by default and provide good basic coverage
+
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1001"  # Allow dot imports
+        - "-ST1000"
+    errcheck:
+        # Ignore error checks in test files for common patterns
+        exclude-functions:
+          - os.Setenv
+          - os.Unsetenv
+          - (*net/http.Response).Body.Close
+          - (*net/http.Server).Shutdown
+          - fmt.Fprintf
+          - fmt.Fprint
+          - (*net/http/httptest.ResponseRecorder).Write
+
+formatters:
+  enable:
+    - gofmt         # Check code is gofmt-ed
+    - goimports     # Check imports are formatted
+
+issues:
+  # Maximum issues count per one linter
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text
+  max-same-issues: 0

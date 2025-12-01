@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"os"
 	"testing"
 
@@ -234,26 +233,6 @@ func TestGetHomeNoteSlugEdgeCases(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Mock ResponseWriter for testing
-type mockResponseWriter struct {
-	headers http.Header
-	body    []byte
-	status  int
-}
-
-func (m *mockResponseWriter) Header() http.Header {
-	return m.headers
-}
-
-func (m *mockResponseWriter) Write(data []byte) (int, error) {
-	m.body = append(m.body, data...)
-	return len(data), nil
-}
-
-func (m *mockResponseWriter) WriteHeader(statusCode int) {
-	m.status = statusCode
 }
 
 func TestExplorerShouldSkipPath(t *testing.T) {

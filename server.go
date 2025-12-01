@@ -214,7 +214,10 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 		for {
 			select {
 			case <-keepAliveTicker.C:
-				fmt.Fprintf(w, ": keep-alive\n\n")
+				if _, err := fmt.Fprintf(w, ": keep-alive\n\n"); err != nil {
+					slog.Debug("SSE keep-alive write failed (client likely disconnected)", "error", err)
+					return
+				}
 				flusher.Flush()
 			case <-keepAliveDone:
 				return
@@ -262,7 +265,10 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 	// Send semantic results if we have any
 	if len(semanticResults) > 0 {
 		html := template.RenderSemanticResultsHTML(s.rs, semanticResults)
-		fmt.Fprintf(w, "event: semantic-results\ndata: %s\n\n", html)
+		if _, err := fmt.Fprintf(w, "event: semantic-results\ndata: %s\n\n", html); err != nil {
+			slog.Debug("SSE semantic results write failed", "error", err, "query", query)
+			return
+		}
 		flusher.Flush()
 		slog.Info("Sent semantic results", "query", query, "count", len(semanticResults))
 	}
@@ -356,7 +362,10 @@ Answer concisely:`, query, userPrompt)
 				if tokenCount == 1 {
 					slog.Info("First AI token received", "query", query, "data", string(chunk))
 				}
-				fmt.Fprintf(w, "event: token\ndata: %s\n\n", string(chunk))
+				if _, err := fmt.Fprintf(w, "event: token\ndata: %s\n\n", string(chunk)); err != nil {
+					slog.Debug("SSE token write failed", "error", err, "query", query)
+					return err
+				}
 				flusher.Flush()
 				return nil
 			}
@@ -372,7 +381,9 @@ Answer concisely:`, query, userPrompt)
 			)
 			if err != nil {
 				slog.Error("AI generation error", "error", err, "query", query)
-				fmt.Fprintf(w, "event: error\ndata: AI generation failed\n\n")
+				if _, writeErr := fmt.Fprintf(w, "event: error\ndata: AI generation failed\n\n"); writeErr != nil {
+					slog.Debug("SSE error write failed", "error", writeErr, "query", query)
+				}
 				flusher.Flush()
 				return
 			}
@@ -382,7 +393,10 @@ Answer concisely:`, query, userPrompt)
 	}
 
 	// Send completion event
-	fmt.Fprintf(w, "event: done\ndata: Complete\n\n")
+	if _, err := fmt.Fprintf(w, "event: done\ndata: Complete\n\n"); err != nil {
+		slog.Debug("SSE done write failed", "error", err, "query", query)
+		return
+	}
 	flusher.Flush()
 }
 
@@ -428,9 +442,18 @@ func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
 		progressNode := template.RenderEmbeddingProgressContent(data)
 
 		// Write SSE message
-		fmt.Fprint(w, "data: ")
-		progressNode.Render(w)
-		fmt.Fprint(w, "\n\n")
+		if _, err := fmt.Fprint(w, "data: "); err != nil {
+			slog.Debug("SSE embedding progress write failed", "error", err)
+			return
+		}
+		if err := progressNode.Render(w); err != nil {
+			slog.Debug("SSE embedding progress render failed", "error", err)
+			return
+		}
+		if _, err := fmt.Fprint(w, "\n\n"); err != nil {
+			slog.Debug("SSE embedding progress write failed", "error", err)
+			return
+		}
 		flusher.Flush()
 	}
 

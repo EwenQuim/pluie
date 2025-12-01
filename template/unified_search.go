@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/EwenQuim/pluie/engine"
@@ -300,7 +301,9 @@ func RenderSemanticResultsHTML(rs Resource, notes []model.Note) string {
 	// Build note cards that will be appended to the existing grid
 	var html strings.Builder
 	for _, note := range notes {
-		rs.renderNoteCard(note).Render(&html)
+		if err := rs.renderNoteCard(note).Render(&html); err != nil {
+			slog.Error("failed to render note card", "slug", note.Slug, "error", err)
+		}
 	}
 
 	return html.String()

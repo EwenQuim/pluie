@@ -62,7 +62,7 @@ func watchFiles(server *Server, basePath string, cfg *config.Config) (*fsnotify.
 	// Watch the base directory and all subdirectories
 	err = addDirectoryRecursive(watcher, basePath)
 	if err != nil {
-		watcher.Close()
+		_ = watcher.Close() // Ignore close error in cleanup path
 		return nil, err
 	}
 
@@ -72,7 +72,11 @@ func watchFiles(server *Server, basePath string, cfg *config.Config) (*fsnotify.
 		var debounceTimer *time.Timer
 		debounceDuration := 500 * time.Millisecond
 
-		defer watcher.Close()
+		defer func() {
+			if err := watcher.Close(); err != nil {
+				slog.Error("failed to close watcher", "error", err)
+			}
+		}()
 
 		for {
 			select {
@@ -88,7 +92,9 @@ func watchFiles(server *Server, basePath string, cfg *config.Config) (*fsnotify.
 					// If a new directory was created, add it to the watcher
 					if event.Op&fsnotify.Create != 0 {
 						if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-							addDirectoryRecursive(watcher, event.Name)
+							if err := addDirectoryRecursive(watcher, event.Name); err != nil {
+								slog.Error("failed to add directory to watcher", "path", event.Name, "error", err)
+							}
 						}
 					}
 

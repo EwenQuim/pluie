@@ -15,14 +15,14 @@ import (
 
 // EmbeddingProgress tracks the current state of embedding operations
 type EmbeddingProgress struct {
-	mu              sync.RWMutex
-	TotalNotes      int
-	EmbeddedNotes   int
-	IsEmbedding     bool
-	CurrentNote     string
-	LastUpdated     time.Time
-	subscribers     []chan EmbeddingStatus
-	subscribersMu   sync.Mutex
+	mu            sync.RWMutex
+	TotalNotes    int
+	EmbeddedNotes int
+	IsEmbedding   bool
+	CurrentNote   string
+	LastUpdated   time.Time
+	subscribers   []chan EmbeddingStatus
+	subscribersMu sync.Mutex
 }
 
 // EmbeddingStatus represents a point-in-time snapshot of embedding progress
