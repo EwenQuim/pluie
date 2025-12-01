@@ -8,6 +8,7 @@ import (
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/mistral"
 	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/llms/openai"
 )
 
 // initializeChatClient creates a chat client based on the configured provider
@@ -32,6 +33,16 @@ func initializeChatClient(cfg *config.Config) (llms.Model, error) {
 		return mistral.New(
 			mistral.WithAPIKey(cfg.MistralAPIKey),
 			mistral.WithModel(cfg.ChatModel),
+		)
+
+	case "openai":
+		// Create OpenAI API client
+		if cfg.OpenAIAPIKey == "" {
+			return nil, fmt.Errorf("OPENAI_API_KEY is required when using openai provider")
+		}
+		return openai.New(
+			openai.WithToken(cfg.OpenAIAPIKey),
+			openai.WithModel(cfg.ChatModel),
 		)
 	}
 

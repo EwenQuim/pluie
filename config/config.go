@@ -30,10 +30,11 @@ type Config struct {
 	HomeNoteSlug    string
 
 	// AI/Chat settings
-	ChatProvider  string // "ollama" or "mistral"
+	ChatProvider  string // "ollama", "mistral", or "openai"
 	ChatModel     string
 	OllamaURL     string
 	MistralAPIKey string
+	OpenAIAPIKey  string
 
 	// Embeddings/Weaviate settings
 	WeaviateHost   string
@@ -61,6 +62,7 @@ func LoadConfig() *Config {
 		HomeNoteSlug:        "Index",
 		OllamaURL:           "http://ollama-models:11434",
 		MistralAPIKey:       "",
+		OpenAIAPIKey:        "",
 		WeaviateHost:        "weaviate-embeddings:9035",
 		WeaviateScheme:      "http",
 		WeaviateIndex:       "Note",
@@ -122,6 +124,7 @@ func Load() *Config {
 		HomeNoteSlug:        "Index",
 		OllamaURL:           "http://ollama-models:11434",
 		MistralAPIKey:       "",
+		OpenAIAPIKey:        "",
 		WeaviateHost:        "weaviate-embeddings:9035",
 		WeaviateScheme:      "http",
 		WeaviateIndex:       "Note",
@@ -144,6 +147,7 @@ func (c *Config) applyEnvironment() {
 	c.ChatModel = getEnvOrDefault("CHAT_MODEL", c.ChatModel)
 	c.OllamaURL = getEnvOrDefault("OLLAMA_URL", c.OllamaURL)
 	c.MistralAPIKey = getEnvOrDefault("MISTRAL_API_KEY", c.MistralAPIKey)
+	c.OpenAIAPIKey = getEnvOrDefault("OPENAI_API_KEY", c.OpenAIAPIKey)
 
 	// Server settings
 	c.Port = getEnvOrDefault("PORT", c.Port)
@@ -180,7 +184,7 @@ func (c *Config) validate() {
 	}
 
 	// Chat provider validation
-	if c.ChatProvider != "ollama" && c.ChatProvider != "mistral" {
+	if c.ChatProvider != "ollama" && c.ChatProvider != "mistral" && c.ChatProvider != "openai" {
 		slog.Warn("Invalid CHAT_PROVIDER, defaulting to 'ollama'", "provided", c.ChatProvider)
 		c.ChatProvider = "ollama"
 	}
