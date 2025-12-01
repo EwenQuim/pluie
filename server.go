@@ -47,22 +47,27 @@ func (s *Server) Start() error {
 	// Serve static files at /static
 	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
 
-	// Search route - must be registered before the catch-all route
-	fuego.Get(server, "/-/search", s.getSearch,
-		option.Query("q", "Search query for semantic search"),
+	// Unified search route - must be registered before the catch-all route
+	fuego.Get(server, "/-/search", s.getUnifiedSearch,
+		option.Query("q", "Search query for unified search (title, heading, semantic, AI)"),
 	)
 
-	// Search chat route - must be registered before the catch-all route
+	// Unified search SSE stream route
+	fuego.GetStd(server, "/-/search-stream", s.getUnifiedSearchStream)
+
+	// Legacy search routes (kept for backward compatibility)
+	fuego.Get(server, "/-/search-semantic", s.getSearch,
+		option.Query("q", "Search query for semantic search only"),
+	)
+
 	fuego.Get(server, "/-/search-chat", s.getSearchChat,
 		option.Query("q", "Question to ask about your notes"),
 	)
 
-	// Live chat search route - must be registered before the catch-all route
 	fuego.Get(server, "/-/search-live-chat", s.getSearchLiveChat,
 		option.Query("q", "Question to ask about your notes with live streaming"),
 	)
 
-	// Live chat search SSE stream route
 	fuego.GetStd(server, "/-/search-live-chat-stream", s.getSearchLiveChatStream)
 
 	// Embedding progress SSE route
@@ -120,6 +125,207 @@ func (s *Server) getTag(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
 	slog.Info("Tag search", "tag", tag, "notes_found", len(notesWithTag), "related_tags", len(relatedTags))
 
 	return s.rs.TagList(s.NotesService, tag, notesWithTag)
+}
+
+// getUnifiedSearch handles the unified search page with immediate and lazy-loaded results
+func (s *Server) getUnifiedSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
+	query := ctx.QueryParam("q")
+
+	if query == "" {
+		slog.Info("Empty unified search query")
+		return s.rs.UnifiedSearchResults(s.NotesService, "", nil, nil, nil)
+	}
+
+	// Get all notes for searching
+	allNotes := s.NotesService.GetAllNotes()
+
+	// Perform title search (limit to top 5)
+	titleMatches := engine.SearchNotesByFilename(allNotes, query)
+	if len(titleMatches) > 5 {
+		titleMatches = titleMatches[:5]
+	}
+
+	// Track seen note slugs for deduplication
+	seenSlugs := make(map[string]bool)
+	var seenSlugsList []string
+	for _, note := range titleMatches {
+		seenSlugs[note.Slug] = true
+		seenSlugsList = append(seenSlugsList, note.Slug)
+	}
+
+	// Perform heading search (limit to top 5, filter already-seen notes)
+	allHeadingMatches := engine.SearchNotesByHeadings(allNotes, query, 0) // Get all first
+	var headingMatches []engine.HeadingMatch
+	for _, match := range allHeadingMatches {
+		if !seenSlugs[match.Note.Slug] {
+			headingMatches = append(headingMatches, match)
+			seenSlugs[match.Note.Slug] = true
+			seenSlugsList = append(seenSlugsList, match.Note.Slug)
+
+			if len(headingMatches) >= 5 {
+				break
+			}
+		}
+	}
+
+	slog.Info("Unified search",
+		"query", query,
+		"title_matches", len(titleMatches),
+		"heading_matches", len(headingMatches),
+		"seen_slugs", len(seenSlugsList))
+
+	return s.rs.UnifiedSearchResults(s.NotesService, query, titleMatches, headingMatches, seenSlugsList)
+}
+
+// getUnifiedSearchStream handles SSE streaming for semantic search and AI response
+func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	seenParam := r.URL.Query().Get("seen")
+
+	if query == "" {
+		http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
+		return
+	}
+
+	// Parse seen slugs
+	seenSlugs := make(map[string]bool)
+	if seenParam != "" {
+		for _, slug := range strings.Split(seenParam, ",") {
+			if slug != "" {
+				seenSlugs[slug] = true
+			}
+		}
+	}
+
+	// Set headers for Server-Sent Events
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	// --- SEMANTIC SEARCH PHASE ---
+
+	// If vector store is available, perform semantic search
+	var semanticResults []model.Note
+	if s.wvStore != nil {
+		docs, err := s.wvStore.SimilaritySearch(r.Context(), query, 10) // Get 10, will filter to 5
+		if err != nil {
+			slog.Error("Similarity search failed", "error", err, "query", query)
+		} else {
+			slog.Info("Weaviate returned documents for unified search", "query", query, "doc_count", len(docs))
+
+			// Convert documents to notes using metadata
+			notesMap := s.NotesService.GetNotesMap()
+			for _, doc := range docs {
+				if slug, ok := doc.Metadata["slug"].(string); ok {
+					if note, exists := notesMap[slug]; exists {
+						// Only add if not already seen
+						if !seenSlugs[note.Slug] {
+							semanticResults = append(semanticResults, note)
+							seenSlugs[note.Slug] = true
+
+							// Stop at 5 results
+							if len(semanticResults) >= 5 {
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		slog.Warn("Vector store not available for unified search")
+	}
+
+	// Send semantic results if we have any
+	if len(semanticResults) > 0 {
+		html := template.RenderSemanticResultsHTML(s.rs, semanticResults)
+		fmt.Fprintf(w, "event: semantic-results\ndata: %s\n\n", html)
+		flusher.Flush()
+		slog.Info("Sent semantic results", "query", query, "count", len(semanticResults))
+	}
+
+	// --- AI RESPONSE PHASE ---
+
+	// Generate AI response if chat client is available
+	if s.chatClient == nil {
+		slog.Warn("Chat client not available for unified search")
+	} else {
+		// Collect all unique notes for context (title + heading + semantic)
+		// Since we can't access title/heading matches here, use semantic results
+		// In production, you might want to pass these via the request
+		contextNotes := semanticResults
+		if len(contextNotes) > 5 {
+			contextNotes = contextNotes[:5]
+		}
+
+		if len(contextNotes) > 0 {
+			// Build context from notes (limit to 300 chars per note)
+			var contextBuilder strings.Builder
+			contextBuilder.WriteString("Relevant notes:\n\n")
+			for i, note := range contextNotes {
+				contextBuilder.WriteString(fmt.Sprintf("%d. %s:\n", i+1, note.Title))
+				content := note.Content
+				if len(content) > 300 {
+					content = content[:300] + "..."
+				}
+				contextBuilder.WriteString(content)
+				contextBuilder.WriteString("\n\n")
+			}
+
+			// Build prompt
+			prompt := fmt.Sprintf(`Answer this question based on the notes below.
+
+Question: %s
+
+%s
+
+Answer concisely:`, query, contextBuilder.String())
+
+			slog.Info("Generating unified search AI response", "query", query, "num_docs", len(contextNotes), "prompt", prompt)
+
+			// Create streaming callback
+			tokenCount := 0
+			streamCallback := func(ctx context.Context, chunk []byte) error {
+				tokenCount++
+				if tokenCount == 1 {
+					slog.Info("First AI token received", "query", query)
+				}
+				fmt.Fprintf(w, "event: token\ndata: %s\n\n", string(chunk))
+				flusher.Flush()
+				return nil
+			}
+
+			// Generate response with streaming
+			_, err := llms.GenerateFromSinglePrompt(
+				r.Context(),
+				s.chatClient,
+				prompt,
+				llms.WithModel(chatModel),
+				llms.WithMaxTokens(512), // Shorter for unified search
+				llms.WithTemperature(0.7),
+				llms.WithStreamingFunc(streamCallback),
+			)
+			if err != nil {
+				slog.Error("AI generation error", "error", err, "query", query)
+				fmt.Fprintf(w, "event: error\ndata: AI generation failed\n\n")
+				flusher.Flush()
+				return
+			}
+
+			slog.Info("AI streaming completed", "query", query, "tokens", tokenCount)
+		}
+	}
+
+	// Send completion event
+	fmt.Fprintf(w, "event: done\ndata: Complete\n\n")
+	flusher.Flush()
 }
 
 func (s *Server) getSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
