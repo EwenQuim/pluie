@@ -47,8 +47,11 @@ COPY --from=builder /app/main .
 # Copy static assets (including generated CSS)
 COPY --from=builder /app/static ./static
 
-# Create vault directory for data storage
+# Create vault directory for valut files
 RUN mkdir -p /vault
+
+# Create vault directory for data storage
+RUN mkdir -p /data
 
 # Run the application (file watching is enabled by default)
 # To disable watching, override with: -watch=false

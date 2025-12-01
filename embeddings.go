@@ -17,11 +17,6 @@ import (
 	"github.com/tmc/langchaingo/vectorstores"
 )
 
-const (
-	embeddingsTrackingFile = "embeddings_tracking.json"
-	embeddingsModel        = "nomic-embed-text" // Fast, efficient embedding model
-)
-
 // EmbeddedFile tracks a file that has been embedded in the Vector Store
 type EmbeddedFile struct {
 	Path         string    `json:"path"`
@@ -36,7 +31,7 @@ type EmbeddingsTracker struct {
 }
 
 // loadEmbeddingsTracker loads the tracking file or creates a new one
-func loadEmbeddingsTracker() (*EmbeddingsTracker, error) {
+func loadEmbeddingsTracker(embeddingsTrackingFile string) (*EmbeddingsTracker, error) {
 	tracker := &EmbeddingsTracker{
 		Files: make(map[string]EmbeddedFile),
 	}
@@ -59,7 +54,7 @@ func loadEmbeddingsTracker() (*EmbeddingsTracker, error) {
 }
 
 // saveEmbeddingsTracker saves the tracking file
-func (t *EmbeddingsTracker) save() error {
+func (t *EmbeddingsTracker) save(embeddingsTrackingFile string) error {
 	data, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling tracker: %w", err)
@@ -112,20 +107,20 @@ type VectorStore interface {
 
 // EmbeddingsManager handles all embeddings-related functionality
 type EmbeddingsManager struct {
-	store        VectorStore        // Vector store for semantic search
-	progress     *EmbeddingProgress // Tracks embedding progress for SSE updates
-	initOnce     sync.Once          // Ensures embeddings are initialized only once
-	initialized  bool               // Tracks if embeddings have been initialized
-	initMutex    sync.RWMutex       // Protects initialized flag
-	notesService *engine.NotesService
+	store                  VectorStore        // Vector store for semantic search
+	progress               *EmbeddingProgress // Tracks embedding progress for SSE updates
+	initOnce               sync.Once          // Ensures embeddings are initialized only once
+	notesService           *engine.NotesService
+	embeddingsTrackingFile string
 }
 
 // NewEmbeddingsManager creates a new EmbeddingsManager
-func NewEmbeddingsManager(store VectorStore, progress *EmbeddingProgress, notesService *engine.NotesService) *EmbeddingsManager {
+func NewEmbeddingsManager(store VectorStore, progress *EmbeddingProgress, notesService *engine.NotesService, embeddingsTrackingFile string) *EmbeddingsManager {
 	return &EmbeddingsManager{
-		store:        store,
-		progress:     progress,
-		notesService: notesService,
+		store:                  store,
+		progress:               progress,
+		notesService:           notesService,
+		embeddingsTrackingFile: embeddingsTrackingFile,
 	}
 }
 
@@ -139,16 +134,11 @@ func (em *EmbeddingsManager) InitializeLazily() {
 	em.initOnce.Do(func() {
 		slog.Info("Lazy-loading embeddings: triggered by search page access")
 
-		// Mark as initialized immediately to prevent concurrent calls
-		em.initMutex.Lock()
-		em.initialized = true
-		em.initMutex.Unlock()
-
 		// Embed notes into vector store in background
 		go func() {
 			ctx := context.Background()
 			allNotes := em.notesService.GetAllNotes()
-			if err := embedNotesWithProgress(ctx, em.store, allNotes, em.progress); err != nil {
+			if err := em.embedNotesWithProgress(ctx, em.store, allNotes, em.progress); err != nil {
 				slog.Error("Error embedding notes", "error", err)
 				// Continue anyway - the server can still work without embeddings
 			}

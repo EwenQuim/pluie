@@ -36,7 +36,11 @@ type Config struct {
 	MistralAPIKey string
 	OpenAIAPIKey  string
 
-	// Embeddings/Weaviate settings
+	// Embeddings settings
+	EmbeddingsTrackingFile string
+	EmbeddingModel         string // Mustn't be changed, the embeddings would mean nothing if done so
+
+	// Weaviate settings
 	WeaviateHost   string
 	WeaviateScheme string
 	WeaviateIndex  string
@@ -46,26 +50,28 @@ type Config struct {
 func LoadConfig(loadFlags bool) *Config {
 	// 1. Set defaults
 	cfg := &Config{
-		Path:                ".",
-		Watch:               true,
-		Mode:                "server",
-		Output:              "dist",
-		ChatProvider:        "ollama",
-		ChatModel:           "tinyllama",
-		Port:                "9999",
-		LogJSON:             false,
-		SiteTitle:           "Pluie",
-		SiteIcon:            "/static/pluie.webp",
-		SiteDescription:     "",
-		HideYamlFrontmatter: false,
-		PublicByDefault:     false,
-		HomeNoteSlug:        "Index",
-		OllamaURL:           "http://ollama-models:11434",
-		MistralAPIKey:       "",
-		OpenAIAPIKey:        "",
-		WeaviateHost:        "weaviate-embeddings:9035",
-		WeaviateScheme:      "http",
-		WeaviateIndex:       "Note",
+		Path:                   ".",
+		Watch:                  true,
+		Mode:                   "server",
+		Output:                 "dist",
+		ChatProvider:           "ollama",
+		ChatModel:              "tinyllama",
+		Port:                   "9999",
+		LogJSON:                false,
+		SiteTitle:              "Pluie",
+		SiteIcon:               "/static/pluie.webp",
+		SiteDescription:        "",
+		HideYamlFrontmatter:    false,
+		PublicByDefault:        false,
+		HomeNoteSlug:           "Index",
+		OllamaURL:              "http://ollama-models:11434",
+		MistralAPIKey:          "",
+		OpenAIAPIKey:           "",
+		EmbeddingsTrackingFile: "embeddings_tracking.json",
+		EmbeddingModel:         "nomic-embed-text",
+		WeaviateHost:           "weaviate-embeddings:9035",
+		WeaviateScheme:         "http",
+		WeaviateIndex:          "Note",
 	}
 
 	// 2. Apply environment variables (override defaults)
@@ -130,7 +136,10 @@ func (c *Config) applyEnvironment() {
 	// Privacy settings
 	c.PublicByDefault = getEnvBool("PUBLIC_BY_DEFAULT", c.PublicByDefault)
 
-	// Embeddings/Weaviate settings
+	// Embeddings settings
+	c.EmbeddingsTrackingFile = getEnvOrDefault("EMBEDDINGS_TRACKING_FILE", c.EmbeddingsTrackingFile)
+
+	// Weaviate settings
 	c.WeaviateHost = getEnvOrDefault("WEAVIATE_HOST", c.WeaviateHost)
 	c.WeaviateScheme = getEnvOrDefault("WEAVIATE_SCHEME", c.WeaviateScheme)
 	c.WeaviateIndex = getEnvOrDefault("WEAVIATE_INDEX", c.WeaviateIndex)

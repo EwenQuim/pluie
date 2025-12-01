@@ -11,6 +11,7 @@ services:
       - "9999:9999" # Left is host port (you can customize), right is container port (do not change)
     volumes:
       - ./vault:/vault # Left is host (you can set you own vault path), right is container (do not change)
+      - ./data:/data # Left is host (you can set you own vault path), right is container (do not change)
     # Uncomment to disable file watching:
     # command: ./main -path /vault -watch=false
     environment:
@@ -20,6 +21,11 @@ services:
       SITE_ICON: https://avatars.githubusercontent.com/u/46993939?v=4 # Default empty (no icon)
       PUBLIC_BY_DEFAULT: true # Default false for privacy
       HIDE_YAML_FRONTMATTER: false # Default false
+      CHAT_PROVIDER: ${PLUIE_CHAT_PROVIDER:-ollama} # ollama, openai, mistral
+      CHAT_MODEL: ${PLUIE_CHAT_MODEL}
+      OPENAI_API_KEY: ${PLUIE_OPENAI_API_KEY}
+      MISTRAL_API_KEY: ${PLUIE_MISTRAL_API_KEY}
+      EMBEDDINGS_TRACKING_FILE: /data/embeddings_tracking.json
     develop:
       watch:
         - action: rebuild

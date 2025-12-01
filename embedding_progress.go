@@ -103,11 +103,11 @@ func (ep *EmbeddingProgress) Unsubscribe(ch chan EmbeddingStatus) {
 }
 
 // embedNotesWithProgress embeds notes into a vector store with progress tracking
-func embedNotesWithProgress(ctx context.Context, store VectorStore, notes []model.Note, progress *EmbeddingProgress) error {
+func (em *EmbeddingsManager) embedNotesWithProgress(ctx context.Context, store VectorStore, notes []model.Note, progress *EmbeddingProgress) error {
 	start := time.Now()
 
 	// Load tracking file
-	tracker, err := loadEmbeddingsTracker()
+	tracker, err := loadEmbeddingsTracker(em.embeddingsTrackingFile)
 	if err != nil {
 		return fmt.Errorf("loading embeddings tracker: %w", err)
 	}
@@ -186,7 +186,7 @@ func embedNotesWithProgress(ctx context.Context, store VectorStore, notes []mode
 	}
 
 	// Save tracker
-	if err := tracker.save(); err != nil {
+	if err := tracker.save(em.embeddingsTrackingFile); err != nil {
 		progress.UpdateProgress(alreadyEmbedded+len(notesToEmbed), totalNotes, "", false)
 		return fmt.Errorf("saving tracker: %w", err)
 	}

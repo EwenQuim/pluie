@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// Create embeddings manager
-	embeddingsManager := NewEmbeddingsManager(wvStore, embeddingProgress, notesService)
+	embeddingsManager := NewEmbeddingsManager(wvStore, embeddingProgress, notesService, cfg.EmbeddingsTrackingFile)
 
 	// Initialize chat client for AI responses
 	chatClient, err := initializeChatClient(cfg)

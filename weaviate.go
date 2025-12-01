@@ -16,12 +16,12 @@ func initializeWeaviateStore(cfg *config.Config) (*weaviate.Store, error) {
 		"host", cfg.WeaviateHost,
 		"scheme", cfg.WeaviateScheme,
 		"index", cfg.WeaviateIndex,
-		"embeddings_model", embeddingsModel)
+		"embeddings_model", cfg.EmbeddingModel)
 
 	// Create Ollama client for embeddings
 	embeddingsClient, err := ollama.New(
 		ollama.WithServerURL(cfg.OllamaURL),
-		ollama.WithModel(embeddingsModel),
+		ollama.WithModel(cfg.EmbeddingModel),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating ollama client: %w", err)
