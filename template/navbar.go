@@ -16,7 +16,6 @@ type navbarConfig struct {
 	siteDescription string
 	currentSlug     string           // Current note slug for search form action
 	searchQuery     string           // Current search query value
-	showSearchForm  bool             // Whether to show the inline search form
 	displayTree     *engine.TreeNode // Optional filtered tree to display (if nil, uses full tree from notesService)
 	mainContent     g.Node           // Main content area
 }
@@ -126,80 +125,32 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 				),
 			),
 		),
-		// Search form (if enabled)
-		g.If(config.showSearchForm,
-			Form(
-				Method("GET"),
-				Action("/"+config.currentSlug),
-				Class("mb-1"),
-				g.Attr("hx-boost", "true"),
-				g.Attr("hx-push-url", "true"),
-				g.Attr("hx-target", "#notes-list"),
-				g.Attr("hx-select", "#notes-list"),
-				g.Attr("hx-swap", "outerHTML"),
-				Div(
-					Class("relative"),
-					Input(
-						Type("text"),
-						Name("search"),
-						Placeholder("Search page..."),
-						Value(config.searchQuery),
-						Class("block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"),
-						g.Attr("hx-get", "/"+config.currentSlug),
-						g.Attr("hx-trigger", "input changed delay:200ms, search"),
-						g.Attr("hx-target", "#notes-list"),
-						g.Attr("hx-select", "#notes-list"),
-						g.Attr("hx-swap", "outerHTML"),
-						g.Attr("hx-push-url", "true"),
-					),
-					Div(
-						Class("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"),
-						Span(
-							Class("text-gray-400 text-sm"),
-							g.Text("🔍"),
-						),
-					),
-					NoScript(
-						Button(
-							Type("submit"),
-							Class("absolute inset-y-0 right-0 pr-3 flex items-center"),
-							g.Text("Search"),
-						),
-					),
-				),
-			),
-		),
 		// Navigation links
 		Div(
 			Class("mb-6"),
 			// Simple search link
 			A(
 				Href("/-/search"),
-				Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"),
+				Class("w-full inline-flex border border-gray-300 items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"),
 				g.Attr("hx-boost", "true"),
-				Span(
-					Class("text-base"),
-					g.Text("🔍"),
-				),
-				g.Text("Search"),
+				Span(g.Text("🔍")),
+				g.Text("Search (c+K)"),
 			),
 		),
-		// Fold/Unfold all buttons (only show if search form is shown, i.e., on note pages)
-		g.If(config.showSearchForm,
-			Div(
-				Class("mb-4 flex gap-2"),
-				Button(
-					Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
-					g.Attr("onclick", "expandAllFolders()"),
-					g.Text("Expand All"),
-				),
-				Button(
-					Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
-					g.Attr("onclick", "collapseAllFolders()"),
-					g.Text("Collapse All"),
-				),
+		Div(
+			Class("mb-4 flex gap-2"),
+			Button(
+				Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
+				g.Attr("onclick", "expandAllFolders()"),
+				g.Text("Expand All"),
+			),
+			Button(
+				Class("px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors cursor-pointer"),
+				g.Attr("onclick", "collapseAllFolders()"),
+				g.Text("Collapse All"),
 			),
 		),
+
 		// Scrollable container for notes tree
 		Div(
 			Class("flex-1 overflow-y-auto"),
@@ -212,7 +163,7 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 
 				return g.Group([]g.Node{
 					// Results info (only show if search query is present)
-					g.If(config.searchQuery != "" && config.showSearchForm,
+					g.If(config.searchQuery != "",
 						P(
 							Class("text-gray-600 mb-2 text-sm"),
 							g.Text(fmt.Sprintf("Found %d notes matching \"%s\"", countNotesInTree(tree), config.searchQuery)),
@@ -232,7 +183,7 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 						),
 					),
 					// Show message if no results found
-					g.If(config.searchQuery != "" && config.showSearchForm && (tree == nil || len(tree.Children) == 0),
+					g.If(config.searchQuery != "" && (tree == nil || len(tree.Children) == 0),
 						P(
 							Class("text-gray-500 mt-4 text-sm"),
 							g.Text("No notes found matching your search."),

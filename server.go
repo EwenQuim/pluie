@@ -295,7 +295,7 @@ Answer concisely:`, query, contextBuilder.String())
 			streamCallback := func(ctx context.Context, chunk []byte) error {
 				tokenCount++
 				if tokenCount == 1 {
-					slog.Info("First AI token received", "query", query)
+					slog.Info("First AI token received", "query", query, "data", string(chunk))
 				}
 				fmt.Fprintf(w, "event: token\ndata: %s\n\n", string(chunk))
 				flusher.Flush()

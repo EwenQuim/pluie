@@ -180,8 +180,7 @@ func (rs Resource) SearchLiveChatResults(notesService *engine.NotesService, quer
 	return rs.Layout(
 		nil, // No specific note for layout
 		rs.renderWithNavbar(notesService, navbarConfig{
-			showSearchForm: false, // Don't show inline search form on search pages
-			mainContent:    mainContent,
+			mainContent: mainContent,
 		}),
 	), nil
 }

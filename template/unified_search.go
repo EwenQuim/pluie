@@ -71,20 +71,8 @@ func (rs Resource) UnifiedSearchResults(
 			Class("prose max-w-none"),
 			unifiedSearchForm("", true),
 			Div(
-				Class("bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8"),
-				H2(
-					Class("text-xl font-semibold text-blue-900 mb-3"),
-					g.Text("How Search Works"),
-				),
-				Ul(
-					Class("space-y-2 text-blue-800"),
-					Li(g.Text("🎯 Title Matches - Notes where the title matches your query")),
-					Li(g.Text("📑 Heading Matches - Sections within notes (H1-H3 headings)")),
-					Li(g.Text("🔍 Semantic Search - AI-powered similarity search across all content")),
-					Li(g.Text("💬 AI Summary - Intelligent summary of all findings")),
-				),
 				P(
-					Class("text-sm text-blue-700 mt-4"),
+					Class("text-sm italic mt-4"),
 					g.Text("Start typing to search across all your notes!"),
 				),
 			),
@@ -124,8 +112,7 @@ func (rs Resource) UnifiedSearchResults(
 	return rs.Layout(
 		nil, // No specific note for layout
 		rs.renderWithNavbar(notesService, navbarConfig{
-			showSearchForm: false, // Don't show inline search form on search pages
-			mainContent:    mainContent,
+			mainContent: mainContent,
 		}),
 	), nil
 }
@@ -136,84 +123,84 @@ func (rs Resource) renderSearchResultsContainer(query string, titleMatches []mod
 		ID("search-results-container"),
 
 		// Combined results section (title + semantic, will be appended via SSE)
-			g.If(len(titleMatches) > 0,
-				Div(
-					Class("mb-8"),
-					Div(
-						ID("combined-results"),
-						Class("grid gap-4 md:grid-cols-2 lg:grid-cols-3"),
-						g.Group(g.Map(titleMatches, func(note model.Note) g.Node {
-							return rs.renderNoteCard(note)
-						})),
-					),
-				),
-			),
-
-			// Loading indicator for semantic search (hidden when not applicable)
-			g.If(len(titleMatches) > 0,
-				Div(
-					ID("search-loading"),
-					Class("flex justify-center py-4 mb-4"),
-					Div(
-						Class("animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"),
-					),
-				),
-			),
-
-			// Placeholder for when no title matches but semantic will load
-			g.If(len(titleMatches) == 0,
+		g.If(len(titleMatches) > 0,
+			Div(
+				Class("mb-8"),
 				Div(
 					ID("combined-results"),
-					Class("grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8"),
-				),
-			),
-			g.If(len(titleMatches) == 0,
-				Div(
-					ID("search-loading"),
-					Class("flex justify-center py-8"),
-					Div(
-						Class("animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"),
-					),
-				),
-			),
-
-			// Heading matches section (smaller, less emphasized)
-			g.If(len(headingMatches) > 0,
-				Div(
-					Class("mb-8 space-y-2"),
-					g.Group(g.Map(headingMatches, func(match engine.HeadingMatch) g.Node {
-						return rs.renderHeadingCard(match)
+					Class("grid gap-4 md:grid-cols-2 lg:grid-cols-3"),
+					g.Group(g.Map(titleMatches, func(note model.Note) g.Node {
+						return rs.renderNoteCard(note)
 					})),
 				),
 			),
+		),
 
-			// AI response section (populated by SSE, hidden initially)
+		// Loading indicator for semantic search (hidden when not applicable)
+		g.If(len(titleMatches) > 0,
 			Div(
-				ID("ai-section"),
-				Class("hidden mb-8"),
-				H2(
-					Class("text-lg font-medium mb-2 text-gray-700"),
-					g.Text("Summary"),
-				),
+				ID("search-loading"),
+				Class("flex justify-center py-4 mb-4"),
 				Div(
-					Class("bg-gray-50 border border-gray-200 rounded-lg p-4"),
-					Div(
-						ID("ai-content"),
-						Class("prose prose-sm max-w-none text-gray-700"),
-					),
-					// Streaming cursor
-					Span(
-						ID("ai-cursor"),
-						Class("inline-block w-1.5 h-3 bg-gray-400 ml-1 animate-pulse"),
-					),
-					// Disclaimer
-					P(
-						ID("ai-disclaimer"),
-						Class("hidden text-xs text-gray-500 italic mt-3 mb-0"),
-						g.Text("AI generated, might not be accurate"),
-					),
+					Class("animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"),
 				),
 			),
+		),
+
+		// Placeholder for when no title matches but semantic will load
+		g.If(len(titleMatches) == 0,
+			Div(
+				ID("combined-results"),
+				Class("grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8"),
+			),
+		),
+		g.If(len(titleMatches) == 0,
+			Div(
+				ID("search-loading"),
+				Class("flex justify-center py-8"),
+				Div(
+					Class("animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"),
+				),
+			),
+		),
+
+		// Heading matches section (smaller, less emphasized)
+		g.If(len(headingMatches) > 0,
+			Div(
+				Class("mb-8 space-y-2"),
+				g.Group(g.Map(headingMatches, func(match engine.HeadingMatch) g.Node {
+					return rs.renderHeadingCard(match)
+				})),
+			),
+		),
+
+		// AI response section (populated by SSE, hidden initially)
+		Div(
+			ID("ai-section"),
+			Class("hidden mb-8"),
+			H2(
+				Class("text-lg font-medium mb-2 text-gray-700"),
+				g.Text("Summary"),
+			),
+			Div(
+				Class("bg-gray-50 border border-gray-200 rounded-lg p-4"),
+				Div(
+					ID("ai-content"),
+					Class("prose prose-sm max-w-none text-gray-700"),
+				),
+				// Streaming cursor
+				Span(
+					ID("ai-cursor"),
+					Class("inline-block w-1.5 h-3 bg-gray-400 ml-1 animate-pulse"),
+				),
+				// Disclaimer
+				P(
+					ID("ai-disclaimer"),
+					Class("hidden text-xs text-gray-500 italic mt-3 mb-0"),
+					g.Text("AI generated, might not be accurate"),
+				),
+			),
+		),
 
 		// SSE EventSource JavaScript
 		rs.renderSSEScript(query, seenParam),

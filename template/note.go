@@ -564,11 +564,10 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 	return rs.Layout(
 		note,
 		rs.renderWithNavbar(notesService, navbarConfig{
-			currentSlug:    slug,
-			searchQuery:    searchQuery,
-			showSearchForm: true, // Show inline search form on note pages
-			displayTree:    displayTree,
-			mainContent:    mainContent,
+			currentSlug: slug,
+			searchQuery: searchQuery,
+			displayTree: displayTree,
+			mainContent: mainContent,
 		}),
 	), nil
 }
@@ -638,8 +637,7 @@ func (rs Resource) TagList(notesService *engine.NotesService, tag string, notes 
 	return rs.Layout(
 		nil, // No specific note for layout
 		rs.renderWithNavbar(notesService, navbarConfig{
-			showSearchForm: false, // Don't show inline search form on tag pages
-			mainContent:    mainContent,
+			mainContent: mainContent,
 		}),
 	), nil
 }
