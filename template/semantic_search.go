@@ -94,12 +94,17 @@ func (rs Resource) SearchResults(notesService *engine.NotesService, query string
 
 	// Main content area
 	mainContent := Div(
-		Class("flex-1 container overflow-y-auto p-4 md:px-8"),
-		H1(
-			Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
-			g.Text(title),
+		Class("flex-1 container overflow-y-auto p-4 md:px-8 flex flex-col"),
+		Div(
+			Class("flex-1"),
+			H1(
+				Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
+				g.Text(title),
+			),
+			content,
 		),
-		content,
+		// Embedding progress indicator at the bottom
+		RenderEmbeddingProgressIndicator(),
 	)
 
 	return rs.Layout(

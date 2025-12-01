@@ -171,39 +171,17 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 		),
 		// Navigation links
 		Div(
-			Class("mb-6 flex flex-col gap-2"),
-			// Semantic search link
+			Class("mb-6"),
+			// Simple search link
 			A(
 				Href("/-/search"),
-				Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors border border-purple-200"),
+				Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"),
 				g.Attr("hx-boost", "true"),
 				Span(
 					Class("text-base"),
 					g.Text("🔍"),
 				),
-				g.Text("Semantic Search"),
-			),
-			// Chat search link
-			A(
-				Href("/-/search-chat"),
-				Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors border border-blue-200"),
-				g.Attr("hx-boost", "true"),
-				Span(
-					Class("text-base"),
-					g.Text("💬"),
-				),
-				g.Text("Chat Search"),
-			),
-			// Live Chat Search link
-			A(
-				Href("/-/search-live-chat"),
-				Class("inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors border border-green-200"),
-				g.Attr("hx-boost", "true"),
-				Span(
-					Class("text-base"),
-					g.Text("⚡"),
-				),
-				g.Text("Live Chat Search"),
+				g.Text("Search"),
 			),
 		),
 		// Fold/Unfold all buttons (only show if search form is shown, i.e., on note pages)
@@ -263,7 +241,5 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 				})
 			}(),
 		),
-		// Embedding progress indicator at the bottom (using HTMX SSE with OOB swaps)
-		RenderEmbeddingProgressIndicator(),
 	)
 }

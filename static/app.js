@@ -419,17 +419,23 @@ document.addEventListener('DOMContentLoaded', function () {
 		mainContent.addEventListener('scroll', debounce(updateActiveTocItem, SCROLL_THROTTLE_MS));
 	}
 
-	// Handle cmd+K (or ctrl+K on Windows/Linux) to focus search
+	// Handle cmd+K (or ctrl+K on Windows/Linux) to navigate to search page
 	document.addEventListener('keydown', function (event) {
 		// Check for cmd+K on Mac or ctrl+K on Windows/Linux
 		if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
 			event.preventDefault();
 
-			// Find the search input
-			const searchInput = /** @type {HTMLInputElement|null} */ (document.querySelector('input[name="search"]'));
-			if (searchInput) {
-				searchInput.focus();
-				searchInput.select(); // Select all text for easy replacement
+			// Check if we're already on the search page
+			if (window.location.pathname === '/-/search') {
+				// Focus the search input on the search page
+				const searchInput = /** @type {HTMLInputElement|null} */ (document.querySelector('input[name="q"]'));
+				if (searchInput) {
+					searchInput.focus();
+					searchInput.select(); // Select all text for easy replacement
+				}
+			} else {
+				// Navigate to the search page
+				window.location.href = '/-/search';
 			}
 		}
 	});
