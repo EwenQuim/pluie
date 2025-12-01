@@ -2,7 +2,6 @@ package template
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/EwenQuim/pluie/model"
@@ -11,17 +10,10 @@ import (
 )
 
 func (rs Resource) Layout(note *model.Note, node ...g.Node) g.Node {
-	// Get base site configuration from environment variables
-	baseSiteTitle := os.Getenv("SITE_TITLE")
-	if baseSiteTitle == "" {
-		baseSiteTitle = "Pluie"
-	}
-
-	siteIcon := os.Getenv("SITE_ICON")
-	if siteIcon == "" {
-		siteIcon = "/static/pluie.webp"
-	}
-	baseSiteDescription := os.Getenv("SITE_DESCRIPTION")
+	// Get base site configuration from Config
+	baseSiteTitle := rs.cfg.SiteTitle
+	siteIcon := rs.cfg.SiteIcon
+	baseSiteDescription := rs.cfg.SiteDescription
 
 	// Compute SEO data using the separated function
 	seoData := ComputeSEOData(note, baseSiteTitle, baseSiteDescription)

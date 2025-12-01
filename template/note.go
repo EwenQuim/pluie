@@ -2,11 +2,11 @@ package template
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	g "github.com/maragudk/gomponents"
@@ -16,8 +16,12 @@ import (
 )
 
 type Resource struct {
-	// Resource is stateless and only contains rendering logic
-	// Data is passed as parameters to methods
+	cfg *config.Config
+}
+
+// NewResource creates a new Resource with the given configuration
+func NewResource(cfg *config.Config) Resource {
+	return Resource{cfg: cfg}
 }
 
 // MapMapSorted creates nodes from a map with keys sorted alphabetically
@@ -467,7 +471,7 @@ func (rs Resource) NoteWithList(notesService *engine.NotesService, note *model.N
 				Class("text-3xl md:text-4xl font-bold mb-4 mt-2"),
 				g.If(title != "", g.Text(title)),
 			),
-			g.If(len(matter) > 0 && os.Getenv("HIDE_YAML_FRONTMATTER") != "true",
+			g.If(len(matter) > 0 && !rs.cfg.HideYamlFrontmatter,
 				Div(
 					Class("mb-6 opacity-80"),
 					// YAML front matter header with toggle button

@@ -33,13 +33,17 @@ func TestServerPrivateNoteFiltering(t *testing.T) {
 
 	// Create server with filtered data
 	notesService := engine.NewNotesService(&publicNotesMap, tree, nil)
+	cfg := &config.Config{
+		PublicByDefault: false,
+		HomeNoteSlug:    "",
+		SiteTitle:       "Pluie",
+		SiteIcon:        "/static/pluie.webp",
+		SiteDescription: "",
+	}
 	server := Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			PublicByDefault: false,
-			HomeNoteSlug:    "",
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	tests := []struct {
@@ -172,13 +176,17 @@ func TestServerGetHomeNoteSlug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := engine.BuildTree(tt.notes)
 			notesService := engine.NewNotesService(&tt.notesMap, tree, nil)
+			cfg := &config.Config{
+				PublicByDefault: false,
+				HomeNoteSlug:    tt.homeNoteSlug,
+				SiteTitle:       "Pluie",
+				SiteIcon:        "/static/pluie.webp",
+				SiteDescription: "",
+			}
 			server := Server{
 				NotesService: notesService,
-				rs:           template.Resource{},
-				cfg: &config.Config{
-					PublicByDefault: false,
-					HomeNoteSlug:    tt.homeNoteSlug,
-				},
+				rs:           template.NewResource(cfg),
+				cfg:          cfg,
 			}
 
 			result := server.NotesService.GetHomeSlug(server.cfg.HomeNoteSlug)

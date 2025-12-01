@@ -38,13 +38,17 @@ func TestServerReactiveDataUpdate(t *testing.T) {
 
 	// Create server with initial data
 	notesService := engine.NewNotesService(&initialNotesMap, initialTree, initialTagIndex)
+	cfg := &config.Config{
+		SiteTitle:       "Pluie",
+		SiteIcon:        "/static/pluie.webp",
+		SiteDescription: "",
+		PublicByDefault: true,
+		HomeNoteSlug:    "",
+	}
 	server := &Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			PublicByDefault: true,
-			HomeNoteSlug:    "",
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	// Test 1: Verify initial data is accessible
@@ -184,12 +188,16 @@ func TestServerReactiveConcurrentUpdates(t *testing.T) {
 	initialTagIndex := engine.BuildTagIndex(initialNotes)
 
 	notesService := engine.NewNotesService(&initialNotesMap, initialTree, initialTagIndex)
+	cfg := &config.Config{
+		SiteTitle:       "Pluie",
+		SiteIcon:        "/static/pluie.webp",
+		SiteDescription: "",
+		PublicByDefault: true,
+	}
 	server := &Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			PublicByDefault: true,
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	// Perform multiple concurrent updates

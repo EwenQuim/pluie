@@ -2,7 +2,6 @@ package template
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/EwenQuim/pluie/engine"
 	g "github.com/maragudk/gomponents"
@@ -11,35 +10,19 @@ import (
 
 // navbarConfig holds configuration for rendering the navbar
 type navbarConfig struct {
-	siteTitle       string
-	siteIcon        string
-	siteDescription string
-	currentSlug     string           // Current note slug for search form action
-	searchQuery     string           // Current search query value
-	displayTree     *engine.TreeNode // Optional filtered tree to display (if nil, uses full tree from notesService)
-	mainContent     g.Node           // Main content area
+	currentSlug string           // Current note slug for search form action
+	searchQuery string           // Current search query value
+	displayTree *engine.TreeNode // Optional filtered tree to display (if nil, uses full tree from notesService)
+	mainContent g.Node           // Main content area
 }
 
 // renderWithNavbar renders a page with consistent navbar structure
 func (rs Resource) renderWithNavbar(notesService *engine.NotesService, config navbarConfig) g.Node {
-	// Get site configuration from environment if not provided
-	if config.siteTitle == "" {
-		config.siteTitle = os.Getenv("SITE_TITLE")
-		if config.siteTitle == "" {
-			config.siteTitle = "Pluie"
-		}
-	}
-	if config.siteIcon == "" {
-		config.siteIcon = os.Getenv("SITE_ICON")
-	}
-	if config.siteDescription == "" {
-		config.siteDescription = os.Getenv("SITE_DESCRIPTION")
-	}
 
 	return Div(
 		Class("flex flex-col md:flex-row md:gap-2 h-screen w-screen justify-between"),
 		// Mobile top bar (hidden on desktop)
-		rs.renderMobileTopBar(config.siteTitle, config.siteIcon),
+		rs.renderMobileTopBar(rs.cfg.SiteTitle, rs.cfg.SiteIcon),
 		// Mobile sidebar overlay
 		rs.renderMobileSidebarOverlay(),
 		// Left sidebar with notes list
@@ -104,9 +87,9 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 			Div(
 				Class("flex items-center gap-3 mb-2"),
 				// Site icon
-				g.If(config.siteIcon != "",
+				g.If(rs.cfg.SiteIcon != "",
 					Img(
-						Src(config.siteIcon),
+						Src(rs.cfg.SiteIcon),
 						Alt("Site Icon"),
 						Class("w-8 h-8 object-contain rounded-md"),
 					),
@@ -114,14 +97,14 @@ func (rs Resource) renderLeftSidebar(notesService *engine.NotesService, config n
 				// Site title
 				H1(
 					Class("text-xl font-bold text-gray-900"),
-					g.Text(config.siteTitle),
+					g.Text(rs.cfg.SiteTitle),
 				),
 			),
 			// Site description
-			g.If(config.siteDescription != "",
+			g.If(rs.cfg.SiteDescription != "",
 				P(
 					Class("text-sm text-gray-500 italic"),
-					g.Text(config.siteDescription),
+					g.Text(rs.cfg.SiteDescription),
 				),
 			),
 		),

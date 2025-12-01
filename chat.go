@@ -4,30 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/model"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
 )
 
 // initializeChatClient creates an Ollama client for chat interactions
-func initializeChatClient(chatModel string) (llms.Model, error) {
-	// Get Ollama configuration from environment or use defaults
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		ollamaURL = "http://ollama-models:11434" // Default from docker-compose
-	}
-
+func initializeChatClient(cfg *config.Config) (llms.Model, error) {
 	slog.Info("Initializing chat client",
-		"url", ollamaURL,
-		"model", chatModel)
+		"url", cfg.OllamaURL,
+		"model", cfg.ChatModel)
 
 	// Create Ollama client for chat
 	chatClient, err := ollama.New(
-		ollama.WithServerURL(ollamaURL),
-		ollama.WithModel(chatModel),
+		ollama.WithServerURL(cfg.OllamaURL),
+		ollama.WithModel(cfg.ChatModel),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating ollama chat client: %w", err)

@@ -76,7 +76,7 @@ This is the initial content.
 	notesService := engine.NewNotesService(notesMap, tree, tagIndex)
 	server := &Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
+		rs:           template.NewResource(cfg),
 		cfg:          cfg,
 	}
 

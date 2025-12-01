@@ -1,8 +1,6 @@
 package main
 
 import (
-	"cmp"
-	"flag"
 	"log/slog"
 	"os"
 
@@ -13,34 +11,23 @@ import (
 )
 
 func main() {
-	path := flag.String("path", ".", "Path to the obsidian folder")
-	watch := flag.Bool("watch", true, "Enable file watching to auto-reload on changes")
-	mode := flag.String("mode", "server", "Mode to run in: server or static")
-	output := flag.String("output", "dist", "Output folder for static site generation")
-
-	// Get default chat model from environment variable, fallback to tinyllama
-	defaultChatModel := cmp.Or(os.Getenv("CHAT_MODEL"), "tinyllama")
-	chatModel := flag.String("model", defaultChatModel, "Chat model to use for AI responses")
-
-	flag.Parse()
+	// Load configuration (parses flags internally)
+	cfg := config.LoadConfig()
 
 	// Setup charmbracelet/log as slog handler
 	logger := log.New(os.Stderr)
 	logger.SetReportTimestamp(true)
 	logger.SetReportCaller(false)
 
-	// Use JSON logging if LOG_JSON=true
-	if os.Getenv("LOG_JSON") == "true" {
+	// Use JSON logging based on config
+	if cfg.LogJSON {
 		logger.SetFormatter(log.JSONFormatter)
 	}
 
 	slog.SetDefault(slog.New(logger))
 
-	// Load configuration
-	cfg := config.Load()
-
 	// Load initial notes
-	notesMap, tree, tagIndex, err := loadNotes(*path, cfg)
+	notesMap, tree, tagIndex, err := loadNotes(cfg.Path, cfg)
 	if err != nil {
 		slog.Error("Error loading notes", "error", err)
 		return
@@ -52,7 +39,7 @@ func main() {
 	embeddingProgress := NewEmbeddingProgress()
 
 	// Initialize Weaviate store for search (embeddings will be lazy-loaded on first search)
-	wvStore, err := initializeWeaviateStore()
+	wvStore, err := initializeWeaviateStore(cfg)
 	if err != nil {
 		slog.Warn("Failed to initialize Weaviate store, search and embeddings will not be available", "error", err)
 		wvStore = nil
@@ -62,35 +49,35 @@ func main() {
 	embeddingsManager := NewEmbeddingsManager(wvStore, embeddingProgress, notesService)
 
 	// Initialize chat client for AI responses
-	chatClient, err := initializeChatClient(*chatModel)
+	chatClient, err := initializeChatClient(cfg)
 	if err != nil {
 		slog.Warn("Failed to initialize chat client, AI responses will not be available", "error", err)
 		chatClient = nil
 	}
 
 	// Run in static mode if requested
-	if *mode == "static" {
-		err := generateStaticSite(notesService, cfg, *output)
+	if cfg.Mode == "static" {
+		err := generateStaticSite(notesService, cfg)
 		if err != nil {
 			slog.Error("Error generating static site", "error", err)
 			return
 		}
-		slog.Info("Static site generated successfully", "folder", *output)
+		slog.Info("Static site generated successfully", "folder", cfg.Output)
 		return
 	}
 
 	// Otherwise run in server mode
 	server := &Server{
 		NotesService:      notesService,
-		rs:                template.Resource{},
+		rs:                template.NewResource(cfg),
 		cfg:               cfg,
 		chatClient:        chatClient,
 		embeddingsManager: embeddingsManager,
 	}
 
 	// Start file watcher if enabled
-	if *watch {
-		_, err = watchFiles(server, *path, cfg)
+	if cfg.Watch {
+		_, err = watchFiles(server, cfg.Path, cfg)
 		if err != nil {
 			slog.Error("Error starting file watcher", "error", err)
 			// Continue anyway - the server can still work without file watching

@@ -116,14 +116,16 @@ func TestServerStart(t *testing.T) {
 
 	tree := engine.BuildTree(notes)
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
+	cfg := &config.Config{
+		Port:         "0", // Use port 0 to get a random available port
+		HomeNoteSlug: "test",
+		SiteTitle:    "Pluie",
+		SiteIcon:     "/static/pluie.webp",
+	}
 	server := Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			Port:            "0", // Use port 0 to get a random available port
-			PublicByDefault: false,
-			HomeNoteSlug:    "test",
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	// Test that Start method exists and can be called
@@ -149,13 +151,15 @@ func TestServerGetNote(t *testing.T) {
 
 	tree := engine.BuildTree(notes)
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
+	cfg := &config.Config{
+		HomeNoteSlug: "home",
+		SiteTitle:    "Pluie",
+		SiteIcon:     "/static/pluie.webp",
+	}
 	server := Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			PublicByDefault: false,
-			HomeNoteSlug:    "home",
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	// Test that getNote method exists and has correct signature
@@ -213,13 +217,15 @@ func TestGetHomeNoteSlugEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := engine.BuildTree(tt.notes)
 			notesService := engine.NewNotesService(&tt.notesMap, tree, nil)
+			cfg := &config.Config{
+				HomeNoteSlug: tt.homeNoteSlug,
+				SiteTitle:    "Pluie",
+				SiteIcon:     "/static/pluie.webp",
+			}
 			server := Server{
 				NotesService: notesService,
-				rs:           template.Resource{},
-				cfg: &config.Config{
-					PublicByDefault: false,
-					HomeNoteSlug:    tt.homeNoteSlug,
-				},
+				rs:           template.NewResource(cfg),
+				cfg:          cfg,
 			}
 
 			result := server.NotesService.GetHomeSlug(server.cfg.HomeNoteSlug)

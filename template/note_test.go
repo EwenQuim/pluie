@@ -6,10 +6,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
 	"github.com/EwenQuim/pluie/model"
 	g "github.com/maragudk/gomponents"
 )
+
+// testResource creates a Resource with default test configuration
+func testResource() Resource {
+	return NewResource(&config.Config{
+		SiteTitle:           "Pluie",
+		SiteIcon:            "/static/pluie.webp",
+		SiteDescription:     "",
+		HideYamlFrontmatter: false,
+	})
+}
 
 // mapMap creates nodes from a map
 func mapMap[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
@@ -617,7 +628,7 @@ func TestRenderYamlProperty(t *testing.T) {
 }
 
 func TestRenderTreeNode(t *testing.T) {
-	rs := Resource{}
+	rs := testResource()
 
 	tests := []struct {
 		name        string
@@ -672,7 +683,7 @@ func TestRenderTreeNode(t *testing.T) {
 }
 
 func TestRenderFolderNode(t *testing.T) {
-	rs := Resource{}
+	rs := testResource()
 
 	tests := []struct {
 		name        string
@@ -720,7 +731,7 @@ func TestRenderFolderNode(t *testing.T) {
 }
 
 func TestRenderNoteNode(t *testing.T) {
-	rs := Resource{}
+	rs := testResource()
 
 	tests := []struct {
 		name        string
@@ -770,7 +781,7 @@ func TestRenderNoteNode(t *testing.T) {
 }
 
 func TestRenderChevronIcon(t *testing.T) {
-	rs := Resource{}
+	rs := testResource()
 
 	tests := []struct {
 		name string
@@ -807,7 +818,7 @@ func TestRenderChevronIcon(t *testing.T) {
 }
 
 func TestRenderFolderChildren(t *testing.T) {
-	rs := Resource{}
+	rs := testResource()
 
 	tests := []struct {
 		name        string
@@ -889,7 +900,7 @@ func TestNoteWithList(t *testing.T) {
 
 	notesMap := make(map[string]model.Note)
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
-	rs := Resource{}
+	rs := testResource()
 
 	tests := []struct {
 		name        string

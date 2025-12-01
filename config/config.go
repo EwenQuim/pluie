@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"log/slog"
 	"os"
 	"strconv"
@@ -8,37 +9,165 @@ import (
 
 // Config holds all application configuration
 type Config struct {
+	// Runtime settings (can be overridden by CLI flags)
+	Path   string
+	Watch  bool
+	Mode   string
+	Output string
+
 	// Server settings
-	Port string
+	Port    string
+	LogJSON bool
 
 	// Site customization
-	SiteTitle       string
-	SiteIcon        string
-	SiteDescription string
+	SiteTitle           string
+	SiteIcon            string
+	SiteDescription     string
+	HideYamlFrontmatter bool
 
 	// Privacy settings
-	PublicByDefault     bool
-	HomeNoteSlug        string
-	HideYamlFrontmatter bool
+	PublicByDefault bool
+	HomeNoteSlug    string
+
+	// AI/Chat settings
+	ChatModel string
+	OllamaURL string
+
+	// Embeddings/Weaviate settings
+	WeaviateHost   string
+	WeaviateScheme string
+	WeaviateIndex  string
 }
 
-// Load creates a new Config with values from environment variables
-func Load() *Config {
+// LoadConfig parses CLI flags and creates Config with CLI flags > Env vars > Defaults priority
+func LoadConfig() *Config {
+	// 1. Set defaults
 	cfg := &Config{
-		Port:                getEnvOrDefault("PORT", "9999"),
-		SiteTitle:           getEnvOrDefault("SITE_TITLE", "Pluie"),
-		SiteIcon:            getEnvOrDefault("SITE_ICON", "/static/pluie.webp"),
-		SiteDescription:     os.Getenv("SITE_DESCRIPTION"),
-		PublicByDefault:     getEnvBool("PUBLIC_BY_DEFAULT", false),
-		HomeNoteSlug:        getEnvOrDefault("HOME_NOTE_SLUG", "Index"),
-		HideYamlFrontmatter: getEnvBool("HIDE_YAML_FRONTMATTER", false),
+		Path:                ".",
+		Watch:               true,
+		Mode:                "server",
+		Output:              "dist",
+		ChatModel:           "tinyllama",
+		Port:                "9999",
+		LogJSON:             false,
+		SiteTitle:           "Pluie",
+		SiteIcon:            "/static/pluie.webp",
+		SiteDescription:     "",
+		HideYamlFrontmatter: false,
+		PublicByDefault:     false,
+		HomeNoteSlug:        "Index",
+		OllamaURL:           "http://ollama-models:11434",
+		WeaviateHost:        "weaviate-embeddings:9035",
+		WeaviateScheme:      "http",
+		WeaviateIndex:       "Note",
 	}
+
+	// 2. Apply environment variables (override defaults)
+	cfg.applyEnvironment()
+
+	// 3. Apply CLI flags (override environment)
+	path := flag.String("path", "", "Path to the obsidian folder")
+	watch := flag.Bool("watch", false, "Enable file watching to auto-reload on changes")
+	mode := flag.String("mode", "", "Mode to run in: server or static")
+	output := flag.String("output", "", "Output folder for static site generation")
+	chatModel := flag.String("model", "", "Chat model to use for AI responses (overrides CHAT_MODEL env var)")
+	flag.Parse()
+
+	if *path != "" {
+		cfg.Path = *path
+	}
+	if flag.Lookup("watch").Value.String() != flag.Lookup("watch").DefValue {
+		cfg.Watch = *watch
+	}
+	if *mode != "" {
+		cfg.Mode = *mode
+	}
+	if *output != "" {
+		cfg.Output = *output
+	}
+	if *chatModel != "" {
+		cfg.ChatModel = *chatModel
+	}
+
+	// 4. Validate with warnings
+	cfg.validate()
 
 	slog.Info("Configuration loaded",
 		slog.Any("config", cfg),
 	)
 
 	return cfg
+}
+
+// Load creates a new Config with values from environment variables only (no CLI flags)
+func Load() *Config {
+	cfg := &Config{
+		Path:                ".",
+		Watch:               true,
+		Mode:                "server",
+		Output:              "dist",
+		ChatModel:           "tinyllama",
+		Port:                "9999",
+		LogJSON:             false,
+		SiteTitle:           "Pluie",
+		SiteIcon:            "/static/pluie.webp",
+		SiteDescription:     "",
+		HideYamlFrontmatter: false,
+		PublicByDefault:     false,
+		HomeNoteSlug:        "Index",
+		OllamaURL:           "http://ollama-models:11434",
+		WeaviateHost:        "weaviate-embeddings:9035",
+		WeaviateScheme:      "http",
+		WeaviateIndex:       "Note",
+	}
+
+	cfg.applyEnvironment()
+	cfg.validate()
+
+	slog.Info("Configuration loaded",
+		slog.Any("config", cfg),
+	)
+
+	return cfg
+}
+
+// applyEnvironment loads configuration from environment variables
+func (c *Config) applyEnvironment() {
+	// ChatModel can be set via CHAT_MODEL env var
+	c.ChatModel = getEnvOrDefault("CHAT_MODEL", c.ChatModel)
+	c.Port = getEnvOrDefault("PORT", c.Port)
+	c.LogJSON = getEnvBool("LOG_JSON", c.LogJSON)
+	c.SiteTitle = getEnvOrDefault("SITE_TITLE", c.SiteTitle)
+	c.SiteIcon = getEnvOrDefault("SITE_ICON", c.SiteIcon)
+	c.SiteDescription = getEnvOrDefault("SITE_DESCRIPTION", c.SiteDescription)
+	c.HideYamlFrontmatter = getEnvBool("HIDE_YAML_FRONTMATTER", c.HideYamlFrontmatter)
+	c.PublicByDefault = getEnvBool("PUBLIC_BY_DEFAULT", c.PublicByDefault)
+	c.HomeNoteSlug = getEnvOrDefault("HOME_NOTE_SLUG", c.HomeNoteSlug)
+	c.OllamaURL = getEnvOrDefault("OLLAMA_URL", c.OllamaURL)
+	c.WeaviateHost = getEnvOrDefault("WEAVIATE_HOST", c.WeaviateHost)
+	c.WeaviateScheme = getEnvOrDefault("WEAVIATE_SCHEME", c.WeaviateScheme)
+	c.WeaviateIndex = getEnvOrDefault("WEAVIATE_INDEX", c.WeaviateIndex)
+}
+
+// validate checks configuration and warns about invalid values
+func (c *Config) validate() {
+	// Mode validation
+	if c.Mode != "server" && c.Mode != "static" {
+		slog.Warn("Invalid MODE, defaulting to 'server'", "provided", c.Mode)
+		c.Mode = "server"
+	}
+
+	// Path validation
+	if _, err := os.Stat(c.Path); os.IsNotExist(err) {
+		slog.Warn("PATH does not exist, using current directory", "path", c.Path)
+		c.Path = "."
+	}
+
+	// Weaviate scheme validation
+	if c.WeaviateScheme != "http" && c.WeaviateScheme != "https" {
+		slog.Warn("Invalid WEAVIATE_SCHEME, defaulting to 'http'", "provided", c.WeaviateScheme)
+		c.WeaviateScheme = "http"
+	}
 }
 
 // getEnvOrDefault returns the environment variable value or a default if not set

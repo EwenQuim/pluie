@@ -31,13 +31,17 @@ func TestServerPointerIntegration(t *testing.T) {
 
 	// Create server instance
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
+	cfg := &config.Config{
+		SiteTitle:       "Pluie",
+		SiteIcon:        "/static/pluie.webp",
+		SiteDescription: "",
+		PublicByDefault: true,
+		Port:            "8080",
+	}
 	server := Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			PublicByDefault: true,
-			Port:            "8080",
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	// Create HTTP server for testing
@@ -137,13 +141,17 @@ func TestServerPointerIntegrationWithPrivateNote(t *testing.T) {
 
 	// Create server instance
 	notesService := engine.NewNotesService(&notesMap, tree, nil)
+	cfg := &config.Config{
+		SiteTitle:       "Pluie",
+		SiteIcon:        "/static/pluie.webp",
+		SiteDescription: "",
+		PublicByDefault: false, // Private by default
+		Port:            "8080",
+	}
 	server := Server{
 		NotesService: notesService,
-		rs:           template.Resource{},
-		cfg: &config.Config{
-			PublicByDefault: false, // Private by default
-			Port:            "8080",
-		},
+		rs:           template.NewResource(cfg),
+		cfg:          cfg,
 	}
 
 	// Create HTTP server for testing

@@ -15,22 +15,22 @@ import (
 	"github.com/EwenQuim/pluie/template"
 )
 
-// generateStaticSite generates a static version of the site in the specified output folder
-func generateStaticSite(notesService *engine.NotesService, cfg *config.Config, distFolder string) error {
-	rs := template.Resource{}
+// generateStaticSite generates a static version of the site in the output folder
+func generateStaticSite(notesService *engine.NotesService, cfg *config.Config) error {
+	rs := template.NewResource(cfg)
 
 	// Create output folder
-	if err := os.RemoveAll(distFolder); err != nil {
+	if err := os.RemoveAll(cfg.Output); err != nil {
 		return fmt.Errorf("failed to remove existing output folder: %w", err)
 	}
-	if err := os.MkdirAll(distFolder, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
 		return fmt.Errorf("failed to create output folder: %w", err)
 	}
 
-	slog.Info("Generating static site", "folder", distFolder)
+	slog.Info("Generating static site", "folder", cfg.Output)
 
 	// Copy static assets
-	if err := copyStaticAssets(distFolder); err != nil {
+	if err := copyStaticAssets(cfg); err != nil {
 		return fmt.Errorf("failed to copy static assets: %w", err)
 	}
 
@@ -38,17 +38,17 @@ func generateStaticSite(notesService *engine.NotesService, cfg *config.Config, d
 	homeNoteSlug := notesService.GetHomeSlug(cfg.HomeNoteSlug)
 
 	// Generate home page (index.html)
-	if err := generateHomePage(notesService, rs, homeNoteSlug, distFolder); err != nil {
+	if err := generateHomePage(notesService, rs, homeNoteSlug, cfg); err != nil {
 		return fmt.Errorf("failed to generate home page: %w", err)
 	}
 
 	// Generate all note pages
-	if err := generateNotePages(notesService, rs, cfg, distFolder); err != nil {
+	if err := generateNotePages(notesService, rs, cfg); err != nil {
 		return fmt.Errorf("failed to generate note pages: %w", err)
 	}
 
 	// Generate tag pages
-	if err := generateTagPages(notesService, rs, distFolder); err != nil {
+	if err := generateTagPages(notesService, rs, cfg); err != nil {
 		return fmt.Errorf("failed to generate tag pages: %w", err)
 	}
 
@@ -57,7 +57,7 @@ func generateStaticSite(notesService *engine.NotesService, cfg *config.Config, d
 }
 
 // generateHomePage generates the home page at /output/index.html
-func generateHomePage(notesService *engine.NotesService, rs template.Resource, homeNoteSlug string, distFolder string) error {
+func generateHomePage(notesService *engine.NotesService, rs template.Resource, homeNoteSlug string, cfg *config.Config) error {
 	slog.Info("Generating home page", "slug", homeNoteSlug)
 
 	var note *model.Note
@@ -74,7 +74,7 @@ func generateHomePage(notesService *engine.NotesService, rs template.Resource, h
 	}
 
 	// Write to index.html
-	indexPath := filepath.Join(distFolder, "index.html")
+	indexPath := filepath.Join(cfg.Output, "index.html")
 	if err := writeNodeToFile(node, indexPath); err != nil {
 		return fmt.Errorf("failed to write index.html: %w", err)
 	}
@@ -84,7 +84,7 @@ func generateHomePage(notesService *engine.NotesService, rs template.Resource, h
 }
 
 // generateNotePages generates HTML pages for all public notes
-func generateNotePages(notesService *engine.NotesService, rs template.Resource, cfg *config.Config, distFolder string) error {
+func generateNotePages(notesService *engine.NotesService, rs template.Resource, cfg *config.Config) error {
 	notes := notesService.GetAllNotes()
 	if len(notes) == 0 {
 		slog.Warn("No notes found, skipping note pages")
@@ -107,7 +107,7 @@ func generateNotePages(notesService *engine.NotesService, rs template.Resource, 
 		}
 
 		// Write to {slug}/index.html or {slug}.html
-		notePath := filepath.Join(distFolder, note.Slug, "index.html")
+		notePath := filepath.Join(cfg.Output, note.Slug, "index.html")
 
 		// Create directory if needed
 		noteDir := filepath.Dir(notePath)
@@ -127,7 +127,7 @@ func generateNotePages(notesService *engine.NotesService, rs template.Resource, 
 }
 
 // generateTagPages generates HTML pages for all tags
-func generateTagPages(notesService *engine.NotesService, rs template.Resource, distFolder string) error {
+func generateTagPages(notesService *engine.NotesService, rs template.Resource, cfg *config.Config) error {
 	tagIndex := notesService.GetTagIndex()
 	allTags := tagIndex.GetAllTags()
 
@@ -146,7 +146,7 @@ func generateTagPages(notesService *engine.NotesService, rs template.Resource, d
 		// Write to /-/tag/{tag}/index.html
 		// Sanitize tag for file path
 		sanitizedTag := strings.ReplaceAll(tag, "/", "-")
-		tagPath := filepath.Join(distFolder, "-", "tag", sanitizedTag, "index.html")
+		tagPath := filepath.Join(cfg.Output, "-", "tag", sanitizedTag, "index.html")
 
 		// Create directory if needed
 		tagDir := filepath.Dir(tagPath)
@@ -166,10 +166,10 @@ func generateTagPages(notesService *engine.NotesService, rs template.Resource, d
 }
 
 // copyStaticAssets copies the static assets to /output/static
-func copyStaticAssets(distFolder string) error {
+func copyStaticAssets(cfg *config.Config) error {
 	slog.Info("Copying static assets")
 
-	staticDir := filepath.Join(distFolder, "static")
+	staticDir := filepath.Join(cfg.Output, "static")
 	if err := os.MkdirAll(staticDir, 0755); err != nil {
 		return fmt.Errorf("failed to create static directory: %w", err)
 	}

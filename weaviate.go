@@ -3,40 +3,24 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"os"
 
+	"github.com/EwenQuim/pluie/config"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/vectorstores/weaviate"
 )
 
 // initializeWeaviateStore creates and initializes the Weaviate store
-func initializeWeaviateStore() (*weaviate.Store, error) {
-	// Get Weaviate configuration from environment or use defaults
-	wvHost := os.Getenv("WEAVIATE_HOST")
-	if wvHost == "" {
-		wvHost = "weaviate-embeddings:9035" // Default from docker-compose
-	}
-
-	wvScheme := os.Getenv("WEAVIATE_SCHEME")
-	if wvScheme == "" {
-		wvScheme = "http"
-	}
-
-	indexName := os.Getenv("WEAVIATE_INDEX")
-	if indexName == "" {
-		indexName = "Note"
-	}
-
+func initializeWeaviateStore(cfg *config.Config) (*weaviate.Store, error) {
 	slog.Info("Initializing Weaviate store",
-		"host", wvHost,
-		"scheme", wvScheme,
-		"index", indexName,
+		"host", cfg.WeaviateHost,
+		"scheme", cfg.WeaviateScheme,
+		"index", cfg.WeaviateIndex,
 		"embeddings_model", embeddingsModel)
 
 	// Create Ollama client for embeddings
 	embeddingsClient, err := ollama.New(
-		ollama.WithServerURL("http://ollama-models:11434"),
+		ollama.WithServerURL(cfg.OllamaURL),
 		ollama.WithModel(embeddingsModel),
 	)
 	if err != nil {
@@ -51,9 +35,9 @@ func initializeWeaviateStore() (*weaviate.Store, error) {
 	// Create Weaviate store
 	wvStore, err := weaviate.New(
 		weaviate.WithEmbedder(emb),
-		weaviate.WithScheme(wvScheme),
-		weaviate.WithHost(wvHost),
-		weaviate.WithIndexName(indexName),
+		weaviate.WithScheme(cfg.WeaviateScheme),
+		weaviate.WithHost(cfg.WeaviateHost),
+		weaviate.WithIndexName(cfg.WeaviateIndex),
 		// Specify which metadata fields to retrieve during similarity search
 		weaviate.WithQueryAttrs([]string{"text", "nameSpace", "title", "path", "slug"}),
 	)
