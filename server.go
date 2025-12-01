@@ -209,6 +209,27 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Start keep-alive ticker to prevent timeout
+	keepAliveTicker := time.NewTicker(15 * time.Second)
+	defer keepAliveTicker.Stop()
+
+	keepAliveDone := make(chan bool)
+	defer close(keepAliveDone)
+
+	go func() {
+		for {
+			select {
+			case <-keepAliveTicker.C:
+				fmt.Fprintf(w, ": keep-alive\n\n")
+				flusher.Flush()
+			case <-keepAliveDone:
+				return
+			case <-r.Context().Done():
+				return
+			}
+		}
+	}()
+
 	// --- SEMANTIC SEARCH PHASE ---
 
 	// If vector store is available, perform semantic search
@@ -449,6 +470,27 @@ func (s *Server) getSearchLiveChatStream(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Start keep-alive ticker to prevent timeout
+	keepAliveTicker := time.NewTicker(15 * time.Second)
+	defer keepAliveTicker.Stop()
+
+	keepAliveDone := make(chan bool)
+	defer close(keepAliveDone)
+
+	go func() {
+		for {
+			select {
+			case <-keepAliveTicker.C:
+				fmt.Fprintf(w, ": keep-alive\n\n")
+				flusher.Flush()
+			case <-keepAliveDone:
+				return
+			case <-r.Context().Done():
+				return
+			}
+		}
+	}()
+
 	// If vector store is not available, send error
 	if s.wvStore == nil {
 		slog.Warn("Vector store not available, cannot perform semantic search")
@@ -599,8 +641,8 @@ func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
 	progressChan := s.embeddingProgress.Subscribe()
 	defer s.embeddingProgress.Unsubscribe(progressChan)
 
-	// Create a ticker for periodic updates (every 3 seconds)
-	ticker := time.NewTicker(3 * time.Second)
+	// Create a ticker for periodic updates (every 10 seconds)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	// Helper function to send HTML update using gomponent
