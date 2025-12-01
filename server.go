@@ -55,21 +55,6 @@ func (s *Server) Start() error {
 	// Unified search SSE stream route
 	fuego.GetStd(server, "/-/search-stream", s.getUnifiedSearchStream)
 
-	// Legacy search routes (kept for backward compatibility)
-	fuego.Get(server, "/-/search-semantic", s.getSearch,
-		option.Query("q", "Search query for semantic search only"),
-	)
-
-	fuego.Get(server, "/-/search-chat", s.getSearchChat,
-		option.Query("q", "Question to ask about your notes"),
-	)
-
-	fuego.Get(server, "/-/search-live-chat", s.getSearchLiveChat,
-		option.Query("q", "Question to ask about your notes with live streaming"),
-	)
-
-	fuego.GetStd(server, "/-/search-live-chat-stream", s.getSearchLiveChatStream)
-
 	// Embedding progress SSE route
 	fuego.GetStd(server, "/-/embedding-progress", s.getEmbeddingProgress)
 
@@ -136,14 +121,8 @@ func (s *Server) getUnifiedSearch(ctx fuego.ContextNoBody) (fuego.Renderer, erro
 		return s.rs.UnifiedSearchResults(s.NotesService, "", nil, nil, nil)
 	}
 
-	// Get all notes for searching
-	allNotes := s.NotesService.GetAllNotes()
-
 	// Perform title search (limit to top 5)
-	titleMatches := engine.SearchNotesByFilename(allNotes, query)
-	if len(titleMatches) > 5 {
-		titleMatches = titleMatches[:5]
-	}
+	titleMatches := s.NotesService.SearchNotesByFilename(query, 5)
 
 	// Track seen note slugs for deduplication
 	seenSlugs := make(map[string]bool)
@@ -154,7 +133,7 @@ func (s *Server) getUnifiedSearch(ctx fuego.ContextNoBody) (fuego.Renderer, erro
 	}
 
 	// Perform heading search (limit to top 5, filter already-seen notes)
-	allHeadingMatches := engine.SearchNotesByHeadings(allNotes, query, 0) // Get all first
+	allHeadingMatches := s.NotesService.SearchNotesByHeadings(query, 0) // Get all first
 	var headingMatches []engine.HeadingMatch
 	for _, match := range allHeadingMatches {
 		if !seenSlugs[match.Note.Slug] {
@@ -287,13 +266,12 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 	} else {
 		// Collect all unique notes for context (title + heading + semantic)
 		// Re-perform title and heading searches to get all relevant notes
-		allNotes := s.NotesService.GetAllNotes()
 
-		// Get title matches
-		titleMatches := engine.SearchNotesByFilename(allNotes, query)
+		// Get title matches (no limit - get all)
+		titleMatches := s.NotesService.SearchNotesByFilename(query, 10)
 
-		// Get heading matches
-		headingMatches := engine.SearchNotesByHeadings(allNotes, query, 0)
+		// Get heading matches (no limit - get all)
+		headingMatches := s.NotesService.SearchNotesByHeadings(query, 10)
 
 		// Combine all results: title, heading, then semantic
 		contextNotes := make([]model.Note, 0, 10)
@@ -349,6 +327,8 @@ func (s *Server) getUnifiedSearchStream(w http.ResponseWriter, r *http.Request) 
 				contextBuilder.WriteString("\n\n")
 			}
 
+			userPrompt := contextBuilder.String()
+
 			// Build prompt
 			prompt := fmt.Sprintf(`Answer this question based on the notes below.
 
@@ -356,9 +336,9 @@ Question: %s
 
 %s
 
-Answer concisely:`, query, contextBuilder.String())
+Answer concisely:`, query, userPrompt)
 
-			slog.Info("Generating unified search AI response", "query", query, "context_size", len(contextBuilder.String()))
+			slog.Info("Generating unified search AI response", "query", query, "context_size", len(userPrompt), "user_prompt", userPrompt)
 
 			// Create streaming callback
 			tokenCount := 0
@@ -394,285 +374,6 @@ Answer concisely:`, query, contextBuilder.String())
 
 	// Send completion event
 	fmt.Fprintf(w, "event: done\ndata: Complete\n\n")
-	flusher.Flush()
-}
-
-func (s *Server) getSearch(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
-	query := ctx.QueryParam("q")
-
-	if query == "" {
-		slog.Info("Empty search query")
-		return s.rs.SearchResults(s.NotesService, "", nil)
-	}
-
-	// If vector store is not available, return empty results
-	if s.wvStore == nil {
-		slog.Warn("Vector store not available, cannot perform semantic search")
-		return s.rs.SearchResults(s.NotesService, query, nil)
-	}
-
-	// Perform similarity search
-	c := context.Background()
-	docs, err := s.wvStore.SimilaritySearch(c, query, 10)
-	if err != nil {
-		slog.Error("Similarity search failed", "error", err, "query", query)
-		return s.rs.SearchResults(s.NotesService, query, nil)
-	}
-
-	slog.Info("Weaviate returned documents", "query", query, "doc_count", len(docs))
-
-	// Convert documents to notes using metadata
-	var searchResults []model.Note
-	notesMap := s.NotesService.GetNotesMap()
-
-	for _, doc := range docs {
-		// Try to get the slug from metadata
-		if slug, ok := doc.Metadata["slug"].(string); ok {
-			if note, exists := notesMap[slug]; exists {
-				searchResults = append(searchResults, note)
-			}
-		}
-	}
-
-	slog.Info("Semantic search", "query", query, "weaviate_docs", len(docs), "results_found", len(searchResults))
-
-	return s.rs.SearchResults(s.NotesService, query, searchResults)
-}
-
-func (s *Server) getSearchChat(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
-	query := ctx.QueryParam("q")
-
-	if query == "" {
-		slog.Info("Empty search chat query")
-		return s.rs.SearchChatResults(s.NotesService, "", nil, "")
-	}
-
-	// If vector store is not available, return empty results
-	if s.wvStore == nil {
-		slog.Warn("Vector store not available, cannot perform semantic search")
-		return s.rs.SearchChatResults(s.NotesService, query, nil, "")
-	}
-
-	// Perform similarity search
-	c := context.Background()
-	docs, err := s.wvStore.SimilaritySearch(c, query, 10)
-	if err != nil {
-		slog.Error("Similarity search failed", "error", err, "query", query)
-		return s.rs.SearchChatResults(s.NotesService, query, nil, "")
-	}
-
-	slog.Info("Weaviate returned documents for chat", "query", query, "doc_count", len(docs))
-
-	// Convert documents to notes using metadata
-	var searchResults []model.Note
-	notesMap := s.NotesService.GetNotesMap()
-
-	for _, doc := range docs {
-		// Try to get the slug from metadata
-		if slug, ok := doc.Metadata["slug"].(string); ok {
-			if note, exists := notesMap[slug]; exists {
-				searchResults = append(searchResults, note)
-			}
-		}
-	}
-
-	slog.Info("Chat search", "query", query, "weaviate_docs", len(docs), "results_found", len(searchResults))
-
-	// Generate AI response if we have results and chat client is available
-	var aiResponse string
-	if len(searchResults) > 0 && s.chatClient != nil {
-		aiResponse, err = generateChatResponse(c, s.chatClient, query, searchResults)
-		if err != nil {
-			slog.Error("Failed to generate chat response", "error", err, "query", query)
-			// Continue without AI response rather than failing completely
-		}
-	} else if s.chatClient == nil {
-		slog.Warn("Chat client not available, cannot generate AI response")
-	}
-
-	return s.rs.SearchChatResults(s.NotesService, query, searchResults, aiResponse)
-}
-
-func (s *Server) getSearchLiveChat(ctx fuego.ContextNoBody) (fuego.Renderer, error) {
-	query := ctx.QueryParam("q")
-	return s.rs.SearchLiveChatResults(s.NotesService, query)
-}
-
-func (s *Server) getSearchLiveChatStream(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-
-	if query == "" {
-		http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
-		return
-	}
-
-	// Set headers for Server-Sent Events
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-
-	// Set write deadline to 5 minutes for long-running SSE connections
-	rc := http.NewResponseController(w)
-	if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-		slog.Warn("Failed to set write deadline", "error", err)
-	}
-
-	// Start keep-alive ticker to prevent timeout
-	keepAliveTicker := time.NewTicker(15 * time.Second)
-	defer keepAliveTicker.Stop()
-
-	keepAliveDone := make(chan bool)
-	defer close(keepAliveDone)
-
-	go func() {
-		for {
-			select {
-			case <-keepAliveTicker.C:
-				fmt.Fprintf(w, ": keep-alive\n\n")
-				flusher.Flush()
-			case <-keepAliveDone:
-				return
-			case <-r.Context().Done():
-				return
-			}
-		}
-	}()
-
-	// If vector store is not available, send error
-	if s.wvStore == nil {
-		slog.Warn("Vector store not available, cannot perform semantic search")
-		fmt.Fprintf(w, "event: error\ndata: Vector store not available\n\n")
-		flusher.Flush()
-		return
-	}
-
-	// If chat client is not available, send error
-	if s.chatClient == nil {
-		slog.Warn("Chat client not available, cannot generate AI response")
-		fmt.Fprintf(w, "event: error\ndata: Chat client not available\n\n")
-		flusher.Flush()
-		return
-	}
-
-	// Perform similarity search (limit to 3 documents to reduce context size)
-	c := context.Background()
-	docs, err := s.wvStore.SimilaritySearch(c, query, 3)
-	if err != nil {
-		slog.Error("Similarity search failed", "error", err, "query", query)
-		fmt.Fprintf(w, "event: error\ndata: Search failed: %s\n\n", err.Error())
-		flusher.Flush()
-		return
-	}
-
-	slog.Info("Weaviate returned documents for live chat", "query", query, "doc_count", len(docs))
-
-	// Convert documents to notes using metadata
-	var searchResults []model.Note
-	notesMap := s.NotesService.GetNotesMap()
-
-	for _, doc := range docs {
-		// Try to get the slug from metadata
-		if slug, ok := doc.Metadata["slug"].(string); ok {
-			if note, exists := notesMap[slug]; exists {
-				searchResults = append(searchResults, note)
-			}
-		}
-	}
-
-	slog.Info("Live chat search", "query", query, "weaviate_docs", len(docs), "results_found", len(searchResults))
-
-	// Send the documents section as HTML (must be single line for SSE)
-	var docsHTML string
-	if len(searchResults) > 0 {
-		docsHTML = fmt.Sprintf(`<div class="mb-6"><h3 class="text-lg font-semibold text-gray-700 mb-3">📚 Found %d relevant notes:</h3><div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">`, len(searchResults))
-
-		for _, note := range searchResults {
-			docsHTML += fmt.Sprintf(`<a href="/%s" class="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"><h4 class="font-semibold text-gray-900 mb-2">%s</h4><p class="text-sm text-gray-600 line-clamp-3">%s</p></a>`,
-				note.Slug, note.Title, truncate(note.Content, 150))
-		}
-
-		docsHTML += `</div></div>`
-	} else {
-		docsHTML = `<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"><p class="text-yellow-800 mb-0">No relevant notes found. The AI will answer based on general knowledge.</p></div>`
-	}
-
-	// Send as SSE event
-	fmt.Fprintf(w, "event: documents\ndata: %s\n\n", docsHTML)
-	flusher.Flush()
-
-	slog.Info("Sent documents HTML", "length", len(docsHTML), "num_results", len(searchResults))
-
-	// Build context from search results (reduce content size to avoid token limits)
-	var contextBuilder strings.Builder
-	if len(searchResults) > 0 {
-		contextBuilder.WriteString("Relevant notes:\n\n")
-		for i, note := range searchResults {
-			contextBuilder.WriteString(fmt.Sprintf("%d. %s:\n", i+1, note.Title))
-			// Limit content to first 300 characters to avoid token limits
-			content := note.Content
-			if len(content) > 300 {
-				content = content[:300] + "..."
-			}
-			contextBuilder.WriteString(content)
-			contextBuilder.WriteString("\n\n")
-		}
-	}
-
-	// Build a more concise prompt
-	prompt := fmt.Sprintf(`Answer this question based on the notes below.
-
-Question: %s
-
-%s
-
-Answer concisely:`, query, contextBuilder.String())
-
-	slog.Info("Generating live chat response", "query", query, "num_docs", len(searchResults))
-
-	// Create a streaming callback that sends tokens via SSE
-	tokenCount := 0
-	streamCallback := func(ctx context.Context, chunk []byte) error {
-		tokenCount++
-		if tokenCount == 1 {
-			slog.Info("First token received from LLM", "query", query)
-		}
-		// Send each token as an SSE event
-		fmt.Fprintf(w, "event: token\ndata: %s\n\n", string(chunk))
-		flusher.Flush()
-		return nil
-	}
-
-	// Log the prompt for debugging
-	slog.Info("Sending prompt to LLM", "prompt_length", len(prompt), "query", query)
-
-	// Generate response with streaming enabled - explicitly specify model
-	_, err = llms.GenerateFromSinglePrompt(
-		c,
-		s.chatClient,
-		prompt,
-		llms.WithMaxTokens(1024),
-		llms.WithTemperature(0.7),
-		llms.WithStreamingFunc(streamCallback),
-	)
-	if err != nil {
-		slog.Error("streaming generation error", "error", err)
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
-		flusher.Flush()
-		return
-	}
-
-	slog.Info("Streaming completed", "query", query, "tokens_sent", tokenCount)
-
-	// Send completion event when done
-	fmt.Fprintf(w, "event: done\ndata: Stream complete\n\n")
 	flusher.Flush()
 }
 
@@ -733,12 +434,4 @@ func (s *Server) getEmbeddingProgress(w http.ResponseWriter, r *http.Request) {
 			sendUpdate(status)
 		}
 	}
-}
-
-// truncate truncates a string to a maximum length, adding "..." if truncated
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
 }

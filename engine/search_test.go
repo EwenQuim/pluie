@@ -9,6 +9,17 @@ import (
 	"github.com/EwenQuim/pluie/model"
 )
 
+// Helper function to create a NotesService for testing
+func createTestNotesService(notes []model.Note) *NotesService {
+	notesMap := make(map[string]model.Note)
+	for _, note := range notes {
+		notesMap[note.Slug] = note
+	}
+	// Build proper tree structure from notes
+	tree := BuildTree(notes)
+	return NewNotesService(&notesMap, tree, make(TagIndex))
+}
+
 func TestSearchNotesByFilename(t *testing.T) {
 	// Create test notes with various filename patterns
 	testNotes := []model.Note{
@@ -56,7 +67,16 @@ func TestSearchNotesByFilename(t *testing.T) {
 			name:        "empty search query returns all notes",
 			notes:       testNotes,
 			searchQuery: "",
-			expected:    testNotes,
+			expected: []model.Note{
+				{Title: "API Documentation", Slug: "api-documentation"},
+				{Title: "config", Slug: "config/app/config"},
+				{Title: "another-nested", Slug: "deep/folder/structure/another-nested"},
+				{Title: "nested-file", Slug: "folder/nested-file"},
+				{Title: "Getting Started", Slug: "getting-started"},
+				{Title: "World", Slug: "hello"},
+				{Title: "hello-world", Slug: "hello-world"},
+				{Title: "README", Slug: "projects/myproject/README"},
+			},
 		},
 		{
 			name:        "search by exact title match",
@@ -105,8 +125,8 @@ func TestSearchNotesByFilename(t *testing.T) {
 			notes:       testNotes,
 			searchQuery: "folder",
 			expected: []model.Note{
-				{Title: "nested-file", Slug: "folder/nested-file"},
 				{Title: "another-nested", Slug: "deep/folder/structure/another-nested"},
+				{Title: "nested-file", Slug: "folder/nested-file"},
 			},
 		},
 		{
@@ -152,15 +172,16 @@ func TestSearchNotesByFilename(t *testing.T) {
 			notes:       testNotes,
 			searchQuery: "nested",
 			expected: []model.Note{
-				{Title: "nested-file", Slug: "folder/nested-file"},
 				{Title: "another-nested", Slug: "deep/folder/structure/another-nested"},
+				{Title: "nested-file", Slug: "folder/nested-file"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SearchNotesByFilename(tt.notes, tt.searchQuery)
+			ns := createTestNotesService(tt.notes)
+			result := ns.SearchNotesByFilename(tt.searchQuery, 0) // 0 = no limit
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("SearchNotesByFilename() = %v, expected %v", result, tt.expected)
@@ -219,7 +240,8 @@ func TestSearchNotesByFilename_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SearchNotesByFilename(tt.notes, tt.searchQuery)
+			ns := createTestNotesService(tt.notes)
+			result := ns.SearchNotesByFilename(tt.searchQuery, 0) // 0 = no limit
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("SearchNotesByFilename() = %v, expected %v", result, tt.expected)
@@ -229,6 +251,106 @@ func TestSearchNotesByFilename_EdgeCases(t *testing.T) {
 }
 
 // Benchmark test to ensure the search function performs well
+func TestSearchNotesByFilename_WithLimits(t *testing.T) {
+	testNotes := []model.Note{
+		{Title: "alpha", Slug: "alpha"},
+		{Title: "beta", Slug: "beta"},
+		{Title: "gamma", Slug: "gamma"},
+		{Title: "delta", Slug: "delta"},
+		{Title: "epsilon", Slug: "epsilon"},
+		{Title: "note in folder", Slug: "folder/note"},
+		{Title: "another note", Slug: "folder/another"},
+		{Title: "third note", Slug: "folder/third"},
+	}
+
+	tests := []struct {
+		name          string
+		notes         []model.Note
+		searchQuery   string
+		maxResults    int
+		expectedCount int
+		expectedFirst string // Slug of first result
+	}{
+		{
+			name:          "no limit returns all matches",
+			notes:         testNotes,
+			searchQuery:   "note",
+			maxResults:    0,
+			expectedCount: 3, // "note in folder", "another note", "third note"
+			expectedFirst: "folder/another",
+		},
+		{
+			name:          "limit to 1 result",
+			notes:         testNotes,
+			searchQuery:   "note",
+			maxResults:    1,
+			expectedCount: 1,
+			expectedFirst: "folder/another",
+		},
+		{
+			name:          "limit to 2 results",
+			notes:         testNotes,
+			searchQuery:   "note",
+			maxResults:    2,
+			expectedCount: 2,
+			expectedFirst: "folder/another",
+		},
+		{
+			name:          "limit larger than results returns all",
+			notes:         testNotes,
+			searchQuery:   "alpha",
+			maxResults:    10,
+			expectedCount: 1,
+			expectedFirst: "alpha",
+		},
+		{
+			name:          "limit with empty query returns limited notes",
+			notes:         testNotes,
+			searchQuery:   "",
+			maxResults:    3,
+			expectedCount: 3,
+			expectedFirst: "alpha", // First alphabetically
+		},
+		{
+			name:          "limit applies to slug matches",
+			notes:         testNotes,
+			searchQuery:   "folder",
+			maxResults:    2,
+			expectedCount: 2,
+			expectedFirst: "folder/note", // Title match comes first
+		},
+		{
+			name:          "zero limit with no matches",
+			notes:         testNotes,
+			searchQuery:   "nonexistent",
+			maxResults:    5,
+			expectedCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := createTestNotesService(tt.notes)
+			result := ns.SearchNotesByFilename(tt.searchQuery, tt.maxResults)
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("SearchNotesByFilename() returned %d results, expected %d", len(result), tt.expectedCount)
+			}
+
+			if tt.expectedCount > 0 && len(result) > 0 {
+				if result[0].Slug != tt.expectedFirst {
+					t.Errorf("First result slug = %q, expected %q", result[0].Slug, tt.expectedFirst)
+				}
+			}
+
+			// Verify we never exceed the limit
+			if tt.maxResults > 0 && len(result) > tt.maxResults {
+				t.Errorf("SearchNotesByFilename() returned %d results, exceeds maxResults of %d", len(result), tt.maxResults)
+			}
+		})
+	}
+}
+
 func BenchmarkSearchNotesByFilename(b *testing.B) {
 	// Create a large set of test notes
 	notes := make([]model.Note, 1000)
@@ -239,9 +361,11 @@ func BenchmarkSearchNotesByFilename(b *testing.B) {
 		}
 	}
 
+	ns := createTestNotesService(notes)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SearchNotesByFilename(notes, "note-500")
+		ns.SearchNotesByFilename("note-500", 0)
 	}
 }
 
@@ -367,7 +491,8 @@ Set up your development environment.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SearchNotesByHeadings(tt.notes, tt.searchQuery, tt.limit)
+			ns := createTestNotesService(tt.notes)
+			result := ns.SearchNotesByHeadings(tt.searchQuery, tt.limit)
 
 			if len(result) != tt.expectedCount {
 				t.Errorf("SearchNotesByHeadings() returned %d results, expected %d", len(result), tt.expectedCount)
@@ -383,6 +508,121 @@ Set up your development environment.`,
 				if tt.expectedLevel > 0 && result[0].Level != tt.expectedLevel {
 					t.Errorf("First heading level = %d, expected %d", result[0].Level, tt.expectedLevel)
 				}
+			}
+		})
+	}
+}
+
+func TestSearchNotesByHeadings_WithLimits(t *testing.T) {
+	testNotes := []model.Note{
+		{
+			Title: "Programming Languages",
+			Slug:  "programming",
+			Content: `# Go Programming
+Learn Go from scratch.
+
+## Advanced Go
+Deep dive into Go concurrency.
+
+### Go Testing
+Unit testing in Go.
+
+# Python Basics
+Introduction to Python.
+
+## Python Advanced
+Advanced Python topics.
+
+### Python Testing
+Testing frameworks in Python.
+
+# JavaScript Guide
+Modern JavaScript development.
+
+## React Framework
+Building apps with React.`,
+		},
+	}
+
+	tests := []struct {
+		name          string
+		notes         []model.Note
+		searchQuery   string
+		limit         int
+		expectedCount int
+		expectedFirst string // Expected first heading
+	}{
+		{
+			name:          "no limit returns all matches",
+			notes:         testNotes,
+			searchQuery:   "Go",
+			limit:         0,
+			expectedCount: 3, // "Go Programming", "Advanced Go", "Go Testing"
+			expectedFirst: "Go Programming",
+		},
+		{
+			name:          "limit to 1 result",
+			notes:         testNotes,
+			searchQuery:   "Go",
+			limit:         1,
+			expectedCount: 1,
+			expectedFirst: "Go Programming",
+		},
+		{
+			name:          "limit to 2 results",
+			notes:         testNotes,
+			searchQuery:   "Go",
+			limit:         2,
+			expectedCount: 2,
+			expectedFirst: "Go Programming",
+		},
+		{
+			name:          "limit larger than matches returns all",
+			notes:         testNotes,
+			searchQuery:   "React",
+			limit:         10,
+			expectedCount: 1,
+			expectedFirst: "React Framework",
+		},
+		{
+			name:          "limit with Testing query",
+			notes:         testNotes,
+			searchQuery:   "Testing",
+			limit:         2,
+			expectedCount: 2,
+			expectedFirst: "Go Testing", // Both H3, alphabetically first
+		},
+		{
+			name:          "limit applies after sorting by score",
+			notes:         testNotes,
+			searchQuery:   "Python",
+			limit:         2,
+			expectedCount: 2,
+			expectedFirst: "Python Basics", // H1 has highest score
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := createTestNotesService(tt.notes)
+			result := ns.SearchNotesByHeadings(tt.searchQuery, tt.limit)
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("SearchNotesByHeadings() returned %d results, expected %d", len(result), tt.expectedCount)
+				for i, match := range result {
+					t.Logf("  [%d] %s (level %d, score %d)", i, match.Heading, match.Level, match.Score)
+				}
+			}
+
+			if tt.expectedCount > 0 && len(result) > 0 {
+				if result[0].Heading != tt.expectedFirst {
+					t.Errorf("First heading = %q, expected %q (score: %d)", result[0].Heading, tt.expectedFirst, result[0].Score)
+				}
+			}
+
+			// Verify we never exceed the limit
+			if tt.limit > 0 && len(result) > tt.limit {
+				t.Errorf("SearchNotesByHeadings() returned %d results, exceeds limit of %d", len(result), tt.limit)
 			}
 		})
 	}
@@ -638,8 +878,10 @@ Even more content.`, i, i, i, i),
 		}
 	}
 
+	ns := createTestNotesService(notes)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SearchNotesByHeadings(notes, "Heading", 5)
+		ns.SearchNotesByHeadings("Heading", 5)
 	}
 }

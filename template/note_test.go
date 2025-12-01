@@ -11,6 +11,15 @@ import (
 	g "github.com/maragudk/gomponents"
 )
 
+// mapMap creates nodes from a map
+func mapMap[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
+	var nodes []g.Node
+	for k, v := range ts {
+		nodes = append(nodes, cb(k, v))
+	}
+	return nodes
+}
+
 func TestRemoveObsidianCallouts(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -244,7 +253,7 @@ func TestMapMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := MapMap(tt.input, func(k string, v int) g.Node {
+			result := mapMap(tt.input, func(k string, v int) g.Node {
 				return g.Text(k + ":" + fmt.Sprintf("%d", v))
 			})
 			if len(result) != tt.expected {

@@ -3,6 +3,7 @@ package engine
 import (
 	"log/slog"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/EwenQuim/pluie/model"
@@ -128,4 +129,129 @@ func (ns *NotesService) GetHomeSlug(homeNoteSlug string) string {
 
 	// Fallback: no notes available
 	return ""
+}
+
+// SearchNotesByFilename searches notes by filename (title and slug) with a maximum result limit
+// This function shows matches in the file name first (score 2), folder names second (score 1)
+// Returns early if maxResults is reached to optimize performance (0 means no limit)
+func (ns *NotesService) SearchNotesByFilename(searchQuery string, maxResults int) []model.Note {
+	notes := ns.GetAllNotes()
+
+	if searchQuery == "" {
+		// Sort by slug for consistent ordering
+		sort.Slice(notes, func(i, j int) bool {
+			return notes[i].Slug < notes[j].Slug
+		})
+		if maxResults > 0 && len(notes) > maxResults {
+			return notes[:maxResults]
+		}
+		return notes
+	}
+
+	searchLower := strings.ToLower(searchQuery)
+
+	// Separate high-score (title) and low-score (slug) matches
+	var titleMatches []model.Note
+	var slugMatches []model.Note
+
+	for _, note := range notes {
+		// Check title first (higher priority)
+		if strings.Contains(strings.ToLower(note.Title), searchLower) {
+			titleMatches = append(titleMatches, note)
+			// Early exit if we have enough title matches (they're highest priority)
+			if maxResults > 0 && len(titleMatches) >= maxResults {
+				// Sort before returning for consistent order
+				sort.Slice(titleMatches, func(i, j int) bool {
+					return titleMatches[i].Slug < titleMatches[j].Slug
+				})
+				return titleMatches
+			}
+			continue
+		}
+
+		// Check slug (lower priority)
+		if strings.Contains(strings.ToLower(note.Slug), searchLower) {
+			slugMatches = append(slugMatches, note)
+		}
+	}
+
+	// Sort each group by slug for consistent ordering
+	sort.Slice(titleMatches, func(i, j int) bool {
+		return titleMatches[i].Slug < titleMatches[j].Slug
+	})
+	sort.Slice(slugMatches, func(i, j int) bool {
+		return slugMatches[i].Slug < slugMatches[j].Slug
+	})
+
+	// Combine results: title matches first, then slug matches
+	result := make([]model.Note, 0, len(titleMatches)+len(slugMatches))
+	result = append(result, titleMatches...)
+	result = append(result, slugMatches...)
+
+	// Apply limit if specified
+	if maxResults > 0 && len(result) > maxResults {
+		result = result[:maxResults]
+	}
+
+	return result
+}
+
+// SearchNotesByHeadings searches for headings (H1-H3) matching the query
+// Returns early if maxResults is reached after sorting (0 means no limit)
+func (ns *NotesService) SearchNotesByHeadings(searchQuery string, maxResults int) []HeadingMatch {
+	if searchQuery == "" {
+		return nil
+	}
+
+	notes := ns.GetAllNotes()
+	searchLower := strings.ToLower(searchQuery)
+
+	var matches []HeadingMatch
+
+	for _, note := range notes {
+		lines := strings.Split(note.Content, "\n")
+
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+
+			// Only check lines that start with #
+			if !strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+
+			heading, level := extractHeading(line)
+
+			// Only H1-H3 (skip H4-H6 and invalid headings)
+			if level < 1 || level > 3 {
+				continue
+			}
+
+			// Check if query matches heading
+			if strings.Contains(strings.ToLower(heading), searchLower) {
+				score := calculateHeadingScore(heading, searchQuery, level)
+				context := extractContext(lines, i, 75)
+
+				matches = append(matches, HeadingMatch{
+					Note:    note,
+					Heading: heading,
+					Level:   level,
+					Context: context,
+					LineNum: i,
+					Score:   score,
+				})
+			}
+		}
+	}
+
+	// Sort by score descending
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].Score > matches[j].Score
+	})
+
+	// Apply limit if specified
+	if maxResults > 0 && len(matches) > maxResults {
+		matches = matches[:maxResults]
+	}
+
+	return matches
 }

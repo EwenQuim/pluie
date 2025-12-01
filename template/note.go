@@ -20,15 +20,6 @@ type Resource struct {
 	// Data is passed as parameters to methods
 }
 
-// MapMap creates nodes from a map
-func MapMap[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
-	var nodes []g.Node
-	for k, v := range ts {
-		nodes = append(nodes, cb(k, v))
-	}
-	return nodes
-}
-
 // MapMapSorted creates nodes from a map with keys sorted alphabetically
 func MapMapSorted[T any](ts map[string]T, cb func(k string, v T) g.Node) []g.Node {
 	// Get all keys and sort them

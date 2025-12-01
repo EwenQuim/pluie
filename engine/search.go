@@ -1,16 +1,10 @@
 package engine
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/EwenQuim/pluie/model"
 )
-
-type NoteScored struct {
-	Note  model.Note
-	Score int
-}
 
 // HeadingMatch represents a match within a note's heading
 type HeadingMatch struct {
@@ -22,99 +16,6 @@ type HeadingMatch struct {
 	Score   int    // Relevance score
 }
 
-// SearchNotesByFilename searches notes by filename (title and slug) and returns filtered results
-// This function shows matches in the file name first, folder names second
-func SearchNotesByFilename(notes []model.Note, searchQuery string) []model.Note {
-	if searchQuery == "" {
-		return notes
-	}
-
-	var filteredNotes []NoteScored
-	searchLower := strings.ToLower(searchQuery)
-
-	for _, note := range notes {
-		// Check if search appears in the title (which represents the filename)
-		if strings.Contains(strings.ToLower(note.Title), searchLower) {
-			filteredNotes = append(filteredNotes, NoteScored{Note: note, Score: 2})
-			continue
-		}
-
-		if strings.Contains(strings.ToLower(note.Slug), searchLower) {
-			filteredNotes = append(filteredNotes, NoteScored{Note: note, Score: 1})
-			continue
-		}
-	}
-
-	// Sort by score descending
-	sort.Slice(filteredNotes, func(i, j int) bool {
-		return filteredNotes[i].Score > filteredNotes[j].Score
-	})
-
-	// Extract notes from scored results
-	result := make([]model.Note, len(filteredNotes))
-	for i, ns := range filteredNotes {
-		result[i] = ns.Note
-	}
-	return result
-}
-
-// SearchNotesByHeadings searches for headings (H1-H3) matching the query
-func SearchNotesByHeadings(notes []model.Note, searchQuery string, limit int) []HeadingMatch {
-	if searchQuery == "" {
-		return nil
-	}
-
-	var matches []HeadingMatch
-	searchLower := strings.ToLower(searchQuery)
-
-	for _, note := range notes {
-		lines := strings.Split(note.Content, "\n")
-
-		for i, line := range lines {
-			trimmed := strings.TrimSpace(line)
-
-			// Only check lines that start with #
-			if !strings.HasPrefix(trimmed, "#") {
-				continue
-			}
-
-			heading, level := extractHeading(line)
-
-			// Only H1-H3 (skip H4-H6 and invalid headings)
-			if level < 1 || level > 3 {
-				continue
-			}
-
-			// Check if query matches heading
-			if strings.Contains(strings.ToLower(heading), searchLower) {
-				score := calculateHeadingScore(heading, searchQuery, level)
-				context := extractContext(lines, i, 75)
-
-				matches = append(matches, HeadingMatch{
-					Note:    note,
-					Heading: heading,
-					Level:   level,
-					Context: context,
-					LineNum: i,
-					Score:   score,
-				})
-			}
-		}
-	}
-
-	// Sort by score descending
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].Score > matches[j].Score
-	})
-
-	// Limit to top N results
-	if limit > 0 && len(matches) > limit {
-		matches = matches[:limit]
-	}
-
-	return matches
-}
-
 // extractHeading extracts the heading text and level from a markdown heading line
 func extractHeading(line string) (string, int) {
 	trimmed := strings.TrimSpace(line)
@@ -122,14 +23,14 @@ func extractHeading(line string) (string, int) {
 
 	// Count the # characters
 	for i, char := range trimmed {
-		if char == '#' {
+		switch char {
+		case '#':
 			level++
-		} else if char == ' ' {
+		case ' ':
 			// Extract the heading text after the hashes and space
 			return strings.TrimSpace(trimmed[i+1:]), level
-		} else {
-			// Invalid heading format (no space after #)
-			break
+		default:
+			return "", 0
 		}
 	}
 
