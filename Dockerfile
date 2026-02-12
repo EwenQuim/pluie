@@ -28,9 +28,10 @@ COPY . .
 RUN npx @tailwindcss/cli -i ./src/input.css -o ./static/tailwind.min.css --minify
 
 # Build the application with build cache and strip symbols
+ARG VERSION=dev
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main .
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o main .
 
 # Final stage
 FROM alpine:latest

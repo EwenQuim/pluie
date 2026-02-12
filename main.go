@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/EwenQuim/pluie/config"
 	"github.com/EwenQuim/pluie/engine"
@@ -10,9 +14,17 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+// version is set at build time via -ldflags
+var version = "dev (local build)"
+
 func main() {
 	// Load configuration (parses flags internally)
 	cfg := config.LoadConfig(true)
+
+	if cfg.Version {
+		fmt.Println("pluie " + version)
+		return
+	}
 
 	// Setup charmbracelet/log as slog handler
 	logger := log.New(os.Stderr)
@@ -25,6 +37,11 @@ func main() {
 	}
 
 	slog.SetDefault(slog.New(logger))
+	slog.Info("Starting pluie", "version", version)
+
+	// Set up signal-based context for graceful shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	// Load initial notes
 	notesMap, tree, tagIndex, err := loadNotes(cfg.Path, cfg)
@@ -46,7 +63,7 @@ func main() {
 	}
 
 	// Create embeddings manager
-	embeddingsManager := NewEmbeddingsManager(wvStore, embeddingProgress, notesService, cfg.EmbeddingsTrackingFile)
+	embeddingsManager := NewEmbeddingsManager(ctx, wvStore, embeddingProgress, notesService, cfg.EmbeddingsTrackingFile, cfg.EmbeddingModel)
 
 	// Initialize chat client for AI responses
 	chatClient, err := initializeChatClient(cfg)
@@ -77,16 +94,16 @@ func main() {
 
 	// Start file watcher if enabled
 	if cfg.Watch {
-		_, err = watchFiles(server, cfg.Path, cfg)
+		_, err = watchFiles(ctx, server, cfg.Path, cfg)
 		if err != nil {
 			slog.Error("Error starting file watcher", "error", err)
 			// Continue anyway - the server can still work without file watching
 		}
 	}
 
-	err = server.Start()
+	err = server.Start(ctx)
 	if err != nil {
-		panic(err)
+		slog.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
-
 }

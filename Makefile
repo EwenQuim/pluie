@@ -1,8 +1,10 @@
 css:
 	tailwindcss -i ./src/input.css -o ./static/tailwind.min.css --watch --minify
 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+
 build: css
-	go build -v -ldflags="-s -w" -o pluie-app
+	go build -v -ldflags="-s -w -X main.version=$(VERSION)" -o pluie-app
 
 # Build for local testing
 docker-build:

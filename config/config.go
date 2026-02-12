@@ -5,15 +5,17 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all application configuration
 type Config struct {
 	// Runtime settings (can be overridden by CLI flags)
-	Path   string
-	Watch  bool
-	Mode   string
-	Output string
+	Path    string
+	Watch   bool
+	Mode    string
+	Output  string
+	Version bool // Print version and exit
 
 	// Server settings
 	Port    string
@@ -37,6 +39,7 @@ type Config struct {
 	OpenAIAPIKey  string
 
 	// Embeddings settings
+	EmbeddingProvider      string // "ollama", "openai", or "mistral"
 	EmbeddingsTrackingFile string
 	EmbeddingModel         string // Mustn't be changed, the embeddings would mean nothing if done so
 
@@ -67,6 +70,7 @@ func LoadConfig(loadFlags bool) *Config {
 		OllamaURL:              "http://ollama-models:11434",
 		MistralAPIKey:          "",
 		OpenAIAPIKey:           "",
+		EmbeddingProvider:      "ollama",
 		EmbeddingsTrackingFile: "embeddings_tracking.json",
 		EmbeddingModel:         "nomic-embed-text",
 		WeaviateHost:           "weaviate-embeddings:9035",
@@ -84,7 +88,10 @@ func LoadConfig(loadFlags bool) *Config {
 		mode := flag.String("mode", "", "Mode to run in: server or static")
 		output := flag.String("output", "", "Output folder for static site generation")
 		chatModel := flag.String("model", "", "Chat model to use for AI responses (overrides CHAT_MODEL env var)")
+		versionFlag := flag.Bool("version", false, "Print version and exit")
 		flag.Parse()
+
+		cfg.Version = *versionFlag
 
 		if *path != "" {
 			cfg.Path = *path
@@ -137,6 +144,7 @@ func (c *Config) applyEnvironment() {
 	c.PublicByDefault = getEnvBool("PUBLIC_BY_DEFAULT", c.PublicByDefault)
 
 	// Embeddings settings
+	c.EmbeddingProvider = getEnvOrDefault("EMBEDDING_PROVIDER", c.EmbeddingProvider)
 	c.EmbeddingsTrackingFile = getEnvOrDefault("EMBEDDINGS_TRACKING_FILE", c.EmbeddingsTrackingFile)
 
 	// Weaviate settings
@@ -165,11 +173,57 @@ func (c *Config) validate() {
 		c.ChatProvider = "ollama"
 	}
 
+	// Embedding provider validation
+	if c.EmbeddingProvider != "ollama" && c.EmbeddingProvider != "openai" && c.EmbeddingProvider != "mistral" {
+		slog.Warn("Invalid EMBEDDING_PROVIDER, defaulting to 'ollama'", "provided", c.EmbeddingProvider)
+		c.EmbeddingProvider = "ollama"
+	}
+
 	// Weaviate scheme validation
 	if c.WeaviateScheme != "http" && c.WeaviateScheme != "https" {
 		slog.Warn("Invalid WEAVIATE_SCHEME, defaulting to 'http'", "provided", c.WeaviateScheme)
 		c.WeaviateScheme = "http"
 	}
+}
+
+// LogValue implements slog.LogValuer to redact sensitive fields when logging
+func (c Config) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("Path", c.Path),
+		slog.Bool("Watch", c.Watch),
+		slog.String("Mode", c.Mode),
+		slog.String("Output", c.Output),
+		slog.String("Port", c.Port),
+		slog.Bool("LogJSON", c.LogJSON),
+		slog.String("SiteTitle", c.SiteTitle),
+		slog.String("SiteIcon", c.SiteIcon),
+		slog.String("SiteDescription", c.SiteDescription),
+		slog.Bool("HideYamlFrontmatter", c.HideYamlFrontmatter),
+		slog.Bool("PublicByDefault", c.PublicByDefault),
+		slog.String("HomeNoteSlug", c.HomeNoteSlug),
+		slog.String("ChatProvider", c.ChatProvider),
+		slog.String("ChatModel", c.ChatModel),
+		slog.String("OllamaURL", c.OllamaURL),
+		slog.String("MistralAPIKey", redact(c.MistralAPIKey)),
+		slog.String("OpenAIAPIKey", redact(c.OpenAIAPIKey)),
+		slog.String("EmbeddingProvider", c.EmbeddingProvider),
+		slog.String("EmbeddingsTrackingFile", c.EmbeddingsTrackingFile),
+		slog.String("EmbeddingModel", c.EmbeddingModel),
+		slog.String("WeaviateHost", c.WeaviateHost),
+		slog.String("WeaviateScheme", c.WeaviateScheme),
+		slog.String("WeaviateIndex", c.WeaviateIndex),
+	)
+}
+
+// redact returns a redacted version of a secret string, showing first/last 4 chars
+func redact(s string) string {
+	if s == "" {
+		return ""
+	}
+	if len(s) <= 8 {
+		return strings.Repeat("*", len(s))
+	}
+	return s[:4] + strings.Repeat("*", len(s)-8) + s[len(s)-4:]
 }
 
 // getEnvOrDefault returns the environment variable value or a default if not set

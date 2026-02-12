@@ -86,7 +86,7 @@ This is the initial content.
 	}
 
 	// Start file watcher
-	watcher, err := watchFiles(server, tempDir, cfg)
+	watcher, err := watchFiles(t.Context(), server, tempDir, cfg)
 	if err != nil {
 		t.Fatalf("Failed to start file watcher: %v", err)
 	}

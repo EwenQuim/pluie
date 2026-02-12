@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -29,7 +30,7 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 		return nil, nil
 	}
 
-	dir, err := os.ReadDir(e.BasePath + "/" + currentPath)
+	dir, err := os.ReadDir(filepath.Join(e.BasePath, currentPath))
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +44,18 @@ func (e Explorer) getFolderNotes(currentPath string) ([]model.Note, error) {
 
 // shouldSkipPath determines if a path should be skipped during exploration
 func (e Explorer) shouldSkipPath(currentPath string) bool {
-	return strings.HasPrefix(currentPath, "/.") ||
-		strings.Contains(currentPath, "node_modules") ||
-		strings.Contains(currentPath, ".git")
+	for segment := range strings.SplitSeq(currentPath, "/") {
+		if segment == "" {
+			continue
+		}
+		if strings.HasPrefix(segment, ".") {
+			return true
+		}
+		if segment == "node_modules" {
+			return true
+		}
+	}
+	return false
 }
 
 // collectFolderMetadata collects metadata from .pluie files in the directory
@@ -66,7 +76,7 @@ func (e Explorer) collectFolderMetadata(dir []os.DirEntry, currentPath string) m
 
 // parsePluieFile parses a .pluie metadata file
 func (e Explorer) parsePluieFile(currentPath, fileName string) map[string]any {
-	metadataBytes, err := os.ReadFile(path.Join(e.BasePath, currentPath, fileName))
+	metadataBytes, err := os.ReadFile(filepath.Join(e.BasePath, currentPath, fileName))
 	if err != nil {
 		return nil
 	}
@@ -113,7 +123,7 @@ func (e Explorer) processDirectoryEntries(dir []os.DirEntry, currentPath string,
 
 // processMarkdownFile processes a single markdown file
 func (e Explorer) processMarkdownFile(currentPath, fileName string, folderMetadata map[string]map[string]any) *model.Note {
-	contentBytes, err := os.ReadFile(path.Join(e.BasePath, currentPath, fileName))
+	contentBytes, err := os.ReadFile(filepath.Join(e.BasePath, currentPath, fileName))
 	if err != nil {
 		return nil
 	}

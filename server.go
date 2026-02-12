@@ -19,6 +19,10 @@ import (
 	"github.com/go-fuego/fuego/option"
 )
 
+type HealthResponse struct {
+	Status string `json:"status"`
+}
+
 type Server struct {
 	NotesService      *engine.NotesService
 	rs                template.Resource
@@ -32,18 +36,14 @@ func (s *Server) UpdateData(notesMap *map[string]model.Note, tree *engine.TreeNo
 	s.NotesService.UpdateData(notesMap, tree, tagIndex)
 }
 
-func (s *Server) Start() error {
-	server := fuego.NewServer(
-		fuego.WithAddr(":"+s.cfg.Port),
-		fuego.WithEngineOptions(
-			fuego.WithOpenAPIConfig(fuego.OpenAPIConfig{
-				DisableLocalSave: true,
-			}),
-		),
-	)
-
+func (s *Server) registerRoutes(server *fuego.Server) {
 	// Serve static files at /static
 	server.Mux.Handle("GET /static/", http.StripPrefix("/static", static.Handler()))
+
+	// Health check endpoint for Docker/K8s probes
+	fuego.Get(server, "/-/health", func(c fuego.ContextNoBody) (HealthResponse, error) {
+		return HealthResponse{Status: "ok"}, nil
+	}, option.Summary("health"), option.Tags("Health"))
 
 	// Unified search route - must be registered before the catch-all route
 	fuego.Get(server, "/-/search", s.getUnifiedSearch,
@@ -62,8 +62,41 @@ func (s *Server) Start() error {
 	fuego.Get(server, "/{slug...}", s.getNote,
 		option.Query("search", "Search query to filter notes by title"),
 	)
+}
 
-	return server.Run()
+func (s *Server) Start(ctx context.Context) error {
+	server := fuego.NewServer(
+		fuego.WithAddr(":"+s.cfg.Port),
+		fuego.WithEngineOptions(
+			fuego.WithOpenAPIConfig(fuego.OpenAPIConfig{
+				DisableLocalSave: true,
+			}),
+		),
+	)
+
+	s.registerRoutes(server)
+
+	// Start server in a goroutine so we can listen for shutdown signal
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Run()
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case <-ctx.Done():
+		slog.Info("Shutdown signal received, draining connections...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			slog.Error("Server shutdown error", "error", err)
+			return err
+		}
+		slog.Info("Server shut down gracefully")
+		return nil
+	case err := <-errCh:
+		return err
+	}
 }
 
 func (s *Server) getNote(ctx fuego.ContextNoBody) (fuego.Renderer, error) {

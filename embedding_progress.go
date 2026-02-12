@@ -96,7 +96,6 @@ func (ep *EmbeddingProgress) Unsubscribe(ch chan EmbeddingStatus) {
 	for i, subscriber := range ep.subscribers {
 		if subscriber == ch {
 			ep.subscribers = append(ep.subscribers[:i], ep.subscribers[i+1:]...)
-			close(ch)
 			break
 		}
 	}
@@ -107,7 +106,7 @@ func (em *EmbeddingsManager) embedNotesWithProgress(ctx context.Context, store V
 	start := time.Now()
 
 	// Load tracking file
-	tracker, err := loadEmbeddingsTracker(em.embeddingsTrackingFile)
+	tracker, err := loadEmbeddingsTracker(em.embeddingsTrackingFile, em.embeddingModel)
 	if err != nil {
 		return fmt.Errorf("loading embeddings tracker: %w", err)
 	}

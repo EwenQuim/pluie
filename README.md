@@ -78,17 +78,50 @@ This generates a static HTML site in the `./public` folder that you can deploy t
 
 ## Configuration
 
-**Environment variables:**
+### Environment Variables
 
-```bash
-SITE_TITLE="My Knowledge Base"
-PUBLIC_BY_DEFAULT=false    # Notes are private by default
-HOME_NOTE_SLUG=Index       # Landing page
-PORT=9999
-LOG_JSON=true              # Enable JSON logging (default: pretty logging)
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SITE_TITLE` | `Pluie` | Site title displayed in the header |
+| `SITE_ICON` | `/static/pluie.webp` | Path to the site icon |
+| `SITE_DESCRIPTION` | _(empty)_ | Site description for meta tags |
+| `PUBLIC_BY_DEFAULT` | `false` | If `true`, all notes are public unless explicitly private |
+| `HOME_NOTE_SLUG` | `Index` | Slug of the note to use as the landing page |
+| `HIDE_YAML_FRONTMATTER` | `false` | If `true`, frontmatter is hidden from rendered notes |
+| `PORT` | `9999` | HTTP server port |
+| `LOG_JSON` | `false` | Enable JSON logging (default: pretty logging) |
 
-**Privacy control:**
+### AI / Chat
+
+Pluie supports AI-powered search responses via Ollama (local), Mistral, or OpenAI.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHAT_PROVIDER` | `ollama` | Chat provider: `ollama`, `mistral`, or `openai` |
+| `CHAT_MODEL` | `tinyllama` | Model name for the chat provider |
+| `OLLAMA_URL` | `http://ollama-models:11434` | Ollama server URL |
+| `MISTRAL_API_KEY` | _(empty)_ | Mistral API key (required when using `mistral` provider) |
+| `OPENAI_API_KEY` | _(empty)_ | OpenAI API key (required when using `openai` provider) |
+
+### Embeddings / Weaviate
+
+Semantic search uses vector embeddings stored in Weaviate. Without Weaviate, only title and heading search is available.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMBEDDING_PROVIDER` | `ollama` | Embedding provider: `ollama`, `openai`, or `mistral` |
+| `EMBEDDINGS_TRACKING_FILE` | `embeddings_tracking.json` | Path to the file tracking which notes have been embedded |
+| `WEAVIATE_HOST` | `weaviate-embeddings:9035` | Weaviate server host |
+| `WEAVIATE_SCHEME` | `http` | Weaviate connection scheme (`http` or `https`) |
+| `WEAVIATE_INDEX` | `Note` | Weaviate index/class name |
+
+Embeddings are created lazily on first search access. By default they use Ollama with `nomic-embed-text`, but you can switch to OpenAI or Mistral embedding models via `EMBEDDING_PROVIDER`.
+
+### Static Mode
+
+Static site generation (`-mode static`) produces HTML files but does not include search or AI features. These require a running server with Weaviate and a chat provider.
+
+### Privacy Control
 
 Control note visibility with frontmatter:
 

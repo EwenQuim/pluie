@@ -27,12 +27,15 @@ type EmbeddedFile struct {
 
 // EmbeddingsTracker manages the tracking of embedded files
 type EmbeddingsTracker struct {
+	Model string                  `json:"model,omitempty"`
 	Files map[string]EmbeddedFile `json:"files"`
 }
 
-// loadEmbeddingsTracker loads the tracking file or creates a new one
-func loadEmbeddingsTracker(embeddingsTrackingFile string) (*EmbeddingsTracker, error) {
+// loadEmbeddingsTracker loads the tracking file or creates a new one.
+// If the configured model differs from the stored model, existing embeddings are cleared.
+func loadEmbeddingsTracker(embeddingsTrackingFile string, currentModel string) (*EmbeddingsTracker, error) {
 	tracker := &EmbeddingsTracker{
+		Model: currentModel,
 		Files: make(map[string]EmbeddedFile),
 	}
 
@@ -49,7 +52,16 @@ func loadEmbeddingsTracker(embeddingsTrackingFile string) (*EmbeddingsTracker, e
 		return nil, fmt.Errorf("parsing tracking file: %w", err)
 	}
 
-	slog.Info("Loaded embeddings tracker", "tracked_files", len(tracker.Files))
+	// Validate that the embedding model hasn't changed
+	if tracker.Model != "" && tracker.Model != currentModel {
+		slog.Warn("Embedding model changed, clearing existing embeddings",
+			"old_model", tracker.Model,
+			"new_model", currentModel)
+		tracker.Files = make(map[string]EmbeddedFile)
+	}
+	tracker.Model = currentModel
+
+	slog.Info("Loaded embeddings tracker", "tracked_files", len(tracker.Files), "model", tracker.Model)
 	return tracker, nil
 }
 
@@ -112,15 +124,19 @@ type EmbeddingsManager struct {
 	initOnce               sync.Once          // Ensures embeddings are initialized only once
 	notesService           *engine.NotesService
 	embeddingsTrackingFile string
+	embeddingModel         string          // Current embedding model for tracker validation
+	ctx                    context.Context // Shutdown context for cancelling background work
 }
 
 // NewEmbeddingsManager creates a new EmbeddingsManager
-func NewEmbeddingsManager(store VectorStore, progress *EmbeddingProgress, notesService *engine.NotesService, embeddingsTrackingFile string) *EmbeddingsManager {
+func NewEmbeddingsManager(ctx context.Context, store VectorStore, progress *EmbeddingProgress, notesService *engine.NotesService, embeddingsTrackingFile string, embeddingModel string) *EmbeddingsManager {
 	return &EmbeddingsManager{
 		store:                  store,
 		progress:               progress,
 		notesService:           notesService,
 		embeddingsTrackingFile: embeddingsTrackingFile,
+		embeddingModel:         embeddingModel,
+		ctx:                    ctx,
 	}
 }
 
@@ -136,9 +152,8 @@ func (em *EmbeddingsManager) InitializeLazily() {
 
 		// Embed notes into vector store in background
 		go func() {
-			ctx := context.Background()
 			allNotes := em.notesService.GetAllNotes()
-			if err := em.embedNotesWithProgress(ctx, em.store, allNotes, em.progress); err != nil {
+			if err := em.embedNotesWithProgress(em.ctx, em.store, allNotes, em.progress); err != nil {
 				slog.Error("Error embedding notes", "error", err)
 				// Continue anyway - the server can still work without embeddings
 			}

@@ -15,9 +15,35 @@ import (
 	"github.com/EwenQuim/pluie/template"
 )
 
+// validateOutputPath checks that the output path is safe to use with os.RemoveAll
+func validateOutputPath(outputPath string) error {
+	absPath, err := filepath.Abs(outputPath)
+	if err != nil {
+		return fmt.Errorf("cannot resolve output path: %w", err)
+	}
+
+	// Reject root directory
+	if absPath == "/" {
+		return fmt.Errorf("refusing to use root directory as output path")
+	}
+
+	// Reject paths with only one component (e.g. /home, /etc, /var)
+	// filepath.Dir of a top-level dir like /home is /
+	if filepath.Dir(absPath) == "/" {
+		return fmt.Errorf("refusing to use system-level directory %q as output path", absPath)
+	}
+
+	return nil
+}
+
 // generateStaticSite generates a static version of the site in the output folder
 func generateStaticSite(notesService *engine.NotesService, cfg *config.Config) error {
 	rs := template.NewResource(cfg)
+
+	// Validate output path before removing
+	if err := validateOutputPath(cfg.Output); err != nil {
+		return fmt.Errorf("unsafe output path: %w", err)
+	}
 
 	// Create output folder
 	if err := os.RemoveAll(cfg.Output); err != nil {

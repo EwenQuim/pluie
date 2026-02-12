@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -53,7 +54,7 @@ func loadNotes(basePath string, cfg *config.Config) (*map[string]model.Note, *en
 // watchFiles sets up a file watcher that monitors changes in the vault directory
 // and reloads the server data when changes are detected
 // Returns the watcher so it can be closed by the caller
-func watchFiles(server *Server, basePath string, cfg *config.Config) (*fsnotify.Watcher, error) {
+func watchFiles(ctx context.Context, server *Server, basePath string, cfg *config.Config) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -80,6 +81,9 @@ func watchFiles(server *Server, basePath string, cfg *config.Config) (*fsnotify.
 
 		for {
 			select {
+			case <-ctx.Done():
+				slog.Info("File watcher stopping due to shutdown")
+				return
 			case event, ok := <-watcher.Events:
 				if !ok {
 					return
